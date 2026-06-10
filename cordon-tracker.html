@@ -476,22 +476,59 @@ const fmt=m=>m>=1000?(m/1000).toFixed(2)+' km':Math.round(m)+' m';
 const fmtT=s=>{const m=Math.floor(s/60),ss=Math.floor(s%60);return m+':'+(ss<10?'0':'')+ss};
 
 // ═══════════════════════════════════════
-//  SEARCH — local filter, instant
+//  SEARCH — local instant + Nominatim API
 // ═══════════════════════════════════════
+let searchTimer=null;
+
 $('sinp').addEventListener('input',function(){
   const q=this.value.trim();
   $('sclr').classList.toggle('on',q.length>0);
+  clearTimeout(searchTimer);
   if(q.length<2){closeSR();return}
+
+  // Show local matches instantly while API loads
   const lq=q.toLowerCase();
-  const hits=DB.filter(r=>r[0].toLowerCase().includes(lq)||r[1].toLowerCase().includes(lq)).slice(0,8);
-  renderSR(hits,q);
+  const local=DB.filter(r=>r[0].toLowerCase().includes(lq)||r[1].toLowerCase().includes(lq)).slice(0,4);
+  renderSR(local,q,true);
+
+  // Fetch real address results after short delay
+  searchTimer=setTimeout(()=>nominatimSearch(q),400);
 });
 
-function renderSR(hits,q){
+async function nominatimSearch(q){
+  try{
+    const url='https://nominatim.openstreetmap.org/search?format=json&limit=6&q='+encodeURIComponent(q);
+    const r=await fetch(url);
+    if(!r.ok) throw new Error(r.status);
+    const data=await r.json();
+    if(!data||!data.length){
+      const lq=q.toLowerCase();
+      const local=DB.filter(r=>r[0].toLowerCase().includes(lq)||r[1].toLowerCase().includes(lq)).slice(0,6);
+      renderSR(local,q,false);
+      return;
+    }
+    const hits=data.map(it=>{
+      const parts=it.display_name.split(', ');
+      return [parts.slice(0,2).join(', '), parts.slice(2,5).join(', '),
+              parseFloat(it.lat), parseFloat(it.lon)];
+    });
+    renderSR(hits,q,false);
+  }catch(e){
+    const lq=q.toLowerCase();
+    const local=DB.filter(r=>r[0].toLowerCase().includes(lq)||r[1].toLowerCase().includes(lq)).slice(0,6);
+    renderSR(local,q,false);
+  }
+}
+
+function renderSR(hits,q,loading=false){
   const box=$('sres');
   box.innerHTML='';
-  if(!hits.length){
-    box.innerHTML='<div class="ri-msg">No matches — tap map to set location</div>';
+  if(!hits.length&&!loading){
+    box.innerHTML='<div class="ri-msg">No results — try a different search or tap map</div>';
+    box.classList.add('open');return;
+  }
+  if(loading&&hits.length===0){
+    box.innerHTML='<div class="ri-msg">Searching…</div>';
     box.classList.add('open');return;
   }
   hits.forEach(r=>{
