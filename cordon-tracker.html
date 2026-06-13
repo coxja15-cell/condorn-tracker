@@ -10,30 +10,34 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
   <style>
-    :root {
+    :root{
       --bg:#060d18;--sur:rgba(6,13,24,.95);--s2:rgba(11,24,38,.97);
-      --border:rgba(255,255,255,.08);--border2:rgba(255,255,255,.14);
+      --border:rgba(255,255,255,.08);--border2:rgba(255,255,255,.15);
       --text:#f0f4ff;--muted:#607080;
-      --run:#ff4040;--drive:#00bfff;--you:#00ff88;--amber:#ffb020;
+      --acc:#ffb020;--acc2:#ff8c00;
       --safe-top:env(safe-area-inset-top,0px);--safe-bot:env(safe-area-inset-bottom,0px);
     }
     *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
     html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-family:-apple-system,'SF Pro Text',system-ui,sans-serif;color:var(--text);-webkit-font-smoothing:antialiased}
+
+    /* MAP */
     #map{position:fixed;inset:0;z-index:0}
     .leaflet-tile{filter:brightness(.68) saturate(.45) hue-rotate(190deg) invert(.88)}
     .leaflet-control-zoom{border:1px solid var(--border2)!important;border-radius:12px!important;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.5)!important}
-    .leaflet-control-zoom a{background:rgba(6,13,24,.92)!important;color:var(--text)!important;border-bottom:1px solid var(--border)!important}
+    .leaflet-control-zoom a{background:rgba(6,13,24,.95)!important;color:var(--text)!important;border-bottom:1px solid var(--border)!important}
     .leaflet-control-attribution{background:rgba(0,0,0,.4)!important;color:rgba(255,255,255,.3)!important;font-size:9px!important}
     .leaflet-popup-content-wrapper{background:rgba(6,13,24,.97)!important;color:var(--text)!important;border:1px solid var(--border2)!important;border-radius:14px!important;box-shadow:0 8px 32px rgba(0,0,0,.7)!important;font-family:inherit!important}
     .leaflet-popup-tip{background:rgba(6,13,24,.97)!important}
+    .ring-label{background:transparent!important;border:none!important;box-shadow:none!important;color:var(--text);font-size:11px;font-weight:700;font-family:-apple-system,sans-serif;text-shadow:0 1px 3px rgba(0,0,0,.9);white-space:nowrap}
+    .ring-label::before{display:none!important}
 
     /* TOP BAR */
     #top-bar{position:fixed;top:calc(var(--safe-top) + 10px);left:12px;right:12px;z-index:200}
     #search-card{background:var(--sur);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid var(--border2);border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,.6);overflow:hidden}
     .brand{display:flex;align-items:center;gap:9px;padding:9px 14px 8px;border-bottom:1px solid var(--border)}
-    .brand-ico{width:26px;height:26px;background:var(--amber);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:#000;flex-shrink:0}
+    .brand-ico{width:26px;height:26px;background:var(--acc);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;transition:background .3s}
     .brand-name{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
-    .brand-tag{margin-left:auto;font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--amber);opacity:.7}
+    .brand-type{margin-left:auto;font-size:10px;font-weight:700;color:var(--acc);letter-spacing:.05em;transition:color .3s}
     .srow{display:flex;align-items:center;padding:10px 14px;gap:10px}
     .sico{color:var(--muted);font-size:15px;flex-shrink:0}
     #sinp{flex:1;background:none;border:none;outline:none;color:var(--text);font-size:16px;font-family:inherit;-webkit-appearance:none}
@@ -41,8 +45,8 @@
     #sclr{display:none;background:rgba(255,255,255,.1);border:none;border-radius:50%;width:22px;height:22px;color:var(--muted);font-size:11px;cursor:pointer;flex-shrink:0;align-items:center;justify-content:center}
     #sclr.on{display:flex}
 
-    /* RESULTS — sibling of search-card inside fixed top-bar */
-    #sres{display:none;margin-top:5px;background:var(--s2);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid var(--border2);border-radius:14px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.7);max-height:52vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
+    /* RESULTS */
+    #sres{display:none;margin-top:5px;background:var(--s2);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid var(--border2);border-radius:14px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.7);max-height:50vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
     #sres.open{display:block}
     .ri{display:flex;align-items:center;padding:11px 14px;gap:12px;border-bottom:1px solid var(--border);cursor:pointer;-webkit-user-select:none;user-select:none}
     .ri:last-child{border-bottom:none}
@@ -57,6 +61,7 @@
     #fabs{position:fixed;right:12px;z-index:150;display:flex;flex-direction:column;gap:8px;transition:bottom .3s ease}
     .fab{width:46px;height:46px;background:var(--sur);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid var(--border2);border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:20px;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,.5);-webkit-user-select:none;user-select:none;transition:transform .15s}
     .fab:active{transform:scale(.91)}
+    .fab-share{background:rgba(255,176,32,.15);border-color:rgba(255,176,32,.3)}
 
     /* ORIGIN LABEL */
     #olbl{position:fixed;left:12px;z-index:150;background:var(--sur);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--border2);border-radius:10px;padding:6px 11px;font-size:12px;color:var(--muted);display:none;max-width:calc(100vw - 80px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:bottom .3s ease}
@@ -68,62 +73,86 @@
 
     /* COLLAPSED */
     #vcol{padding:4px 14px 12px}
-    .cstats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-bottom:10px}
-    .cs{background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:11px;padding:8px 6px;text-align:center}
-    .csv{font-size:17px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1;margin-bottom:4px;letter-spacing:-.01em}
-    .csl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+    .cstats{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-bottom:10px}
+    .cs{background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:10px;padding:7px 4px;text-align:center}
+    .cs.off{opacity:.3}
+    .csv{font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1;margin-bottom:3px;letter-spacing:-.01em}
+    .csl{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
     .cbtns{display:flex;gap:8px}
-    .cb{height:50px;border-radius:13px;border:none;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;transition:transform .12s;-webkit-user-select:none;user-select:none;letter-spacing:-.01em}
+    .cb{height:50px;border-radius:13px;border:none;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;transition:transform .12s;-webkit-user-select:none;user-select:none}
     .cb:active{transform:scale(.95)} .cb:disabled{opacity:.3}
     .cb-go{flex:1;background:#00c853;color:#000}
-    .cb-st{flex:1;background:var(--run);color:#fff}
+    .cb-st{flex:1;background:#ef4444;color:#fff}
     .cb-sm{flex:0 0 50px;background:rgba(255,255,255,.06);color:var(--text);border:1px solid var(--border2)!important;font-size:18px}
 
     /* EXPANDED */
-    #vexp{display:none;padding:0 14px 14px;max-height:80vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
+    #vexp{display:none;padding:0 14px 14px;max-height:82vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
     #panel.exp #vcol{display:none} #panel.exp #vexp{display:block}
-    .slbl{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin:14px 0 7px}
+    .slbl{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin:14px 0 8px}
     .slbl:first-child{margin-top:0}
+
+    /* INCIDENT TYPE BUTTONS */
+    .type-row{display:flex;gap:6px;flex-wrap:wrap}
+    .type-btn{flex:1;min-width:0;padding:9px 4px;border-radius:10px;border:1px solid var(--border2);background:rgba(255,255,255,.04);cursor:pointer;text-align:center;transition:all .15s;-webkit-user-select:none;user-select:none}
+    .type-btn:active{transform:scale(.95)}
+    .type-btn.active{border-color:var(--acc);background:rgba(255,176,32,.12)}
+    .type-ico{font-size:18px;display:block;margin-bottom:3px}
+    .type-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+
+    /* RING ROWS */
+    .ring-row{display:flex;align-items:center;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:6px;gap:10px}
+    .ring-row.off{opacity:.45}
+    .ring-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+    .ring-name{flex:1;font-size:14px}
+    .ring-speed{background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.14);border-radius:8px;padding:6px 8px;color:var(--text);font-size:15px;font-family:'SF Mono','Courier New',monospace;width:64px;text-align:center;outline:none;-webkit-appearance:none;-moz-appearance:textfield}
+    .ring-speed::-webkit-outer-spin-button,.ring-speed::-webkit-inner-spin-button{-webkit-appearance:none}
+    .ring-unit{font-size:11px;color:var(--muted);min-width:26px}
+    .toggle{width:44px;height:26px;border-radius:13px;border:none;cursor:pointer;position:relative;flex-shrink:0;transition:background .2s;-webkit-user-select:none;user-select:none}
+    .toggle::after{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 1px 4px rgba(0,0,0,.3)}
+    .toggle.on::after{transform:translateX(18px)}
+    .toggle.on{background:#00c853}
+    .toggle.off{background:rgba(255,255,255,.2)}
+
+    /* FIELDS */
     .field{display:flex;align-items:center;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:12px;padding:11px 13px;margin-bottom:6px;gap:10px}
-    .field:last-child{margin-bottom:0}
     .fi{font-size:18px;flex-shrink:0}
     .fn{flex:1;font-size:14px}
     .finp{background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.14);border-radius:9px;padding:7px 10px;color:var(--text);font-size:16px;font-family:'SF Mono','Courier New',monospace;width:76px;text-align:center;outline:none;-webkit-appearance:none;-moz-appearance:textfield}
     .finp::-webkit-outer-spin-button,.finp::-webkit-inner-spin-button{-webkit-appearance:none}
     .fu{font-size:12px;color:var(--muted);min-width:32px}
-    .rdot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+
+    /* STATUS */
     .sbar2{display:flex;align-items:center;gap:8px;padding:9px 11px;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:11px;margin-bottom:10px}
     .sdot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0}
-    .sdot.live{background:var(--you);box-shadow:0 0 8px rgba(0,255,136,.5);animation:blink 1.4s infinite}
-    .sdot.off{background:var(--run)}
+    .sdot.live{background:#00ff88;box-shadow:0 0 8px rgba(0,255,136,.5);animation:blink 1.4s infinite}
+    .sdot.off{background:#ef4444}
     @keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
     .stxt2{font-size:13px;color:var(--muted)}
-    .estats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-bottom:12px}
+
+    /* EXP STATS */
+    .estats{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-bottom:12px}
     .ebtns{display:flex;gap:8px}
     .eb{flex:1;height:52px;border-radius:13px;border:none;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;transition:transform .12s;-webkit-user-select:none;user-select:none}
     .eb:active{transform:scale(.95)} .eb:disabled{opacity:.3}
     .eb-go{background:#00c853;color:#000}
-    .eb-st{background:var(--run);color:#fff}
+    .eb-st{background:#ef4444;color:#fff}
     .eb-sm{background:rgba(255,255,255,.06);color:var(--text);border:1px solid var(--border2)!important;flex:0 0 52px;font-size:20px}
-
-    .rc{color:var(--run)} .dc{color:var(--drive)} .tc{color:var(--amber)}
   </style>
 </head>
 <body>
-
 <div id="map"></div>
 
 <!-- TOP SEARCH -->
 <div id="top-bar">
   <div id="search-card">
     <div class="brand">
-      <div class="brand-ico">🚨</div>
+      <div class="brand-ico" id="brand-ico">🚨</div>
       <span class="brand-name">Cordon Tracker</span>
-      <span class="brand-tag">Emergency Services</span>
+      <span class="brand-type" id="brand-type">General</span>
     </div>
     <div class="srow">
       <span class="sico">🔍</span>
-      <input id="sinp" type="text" placeholder="Search suburb, city or landmark…"
+      <input id="sinp" type="text" placeholder="Search address, suburb or landmark…"
              autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
       <button id="sclr" onclick="clearSearch()">✕</button>
     </div>
@@ -133,8 +162,9 @@
 
 <!-- FABS -->
 <div id="fabs">
-  <button class="fab" id="fab-loc" onclick="getMyLocation()">📍</button>
-  <button class="fab" onclick="fitMap()">⊡</button>
+  <button class="fab fab-share" onclick="shareIncident()" title="Share">📤</button>
+  <button class="fab" id="fab-loc" onclick="getMyLocation()" title="My Location">📍</button>
+  <button class="fab" onclick="fitMap()" title="Fit view">⊡</button>
 </div>
 
 <!-- ORIGIN LABEL -->
@@ -144,12 +174,9 @@
 <div id="panel">
   <div class="phandle" id="ptoggle"><div class="pbar"></div></div>
 
+  <!-- COLLAPSED -->
   <div id="vcol">
-    <div class="cstats">
-      <div class="cs"><div class="csv tc" id="c-t">0:00</div><div class="csl">Elapsed</div></div>
-      <div class="cs"><div class="csv rc" id="c-r">0 m</div><div class="csl">🏃 Run</div></div>
-      <div class="cs"><div class="csv dc" id="c-d">0 m</div><div class="csl">🚗 Drive</div></div>
-    </div>
+    <div class="cstats" id="c-stats-row"></div>
     <div class="cbtns">
       <button class="cb cb-go" id="c-go" onclick="startTimer()">▶ Start</button>
       <button class="cb cb-st" id="c-stop" onclick="stopTimer()" disabled>⏹ Stop</button>
@@ -158,36 +185,32 @@
     </div>
   </div>
 
+  <!-- EXPANDED -->
   <div id="vexp">
     <div class="sbar2"><div class="sdot" id="sdot"></div><span class="stxt2" id="stxt">Idle — set an incident location</span></div>
+
+    <div class="slbl">Incident Type</div>
+    <div class="type-row" id="type-row"></div>
+
     <div class="slbl">Incident Location</div>
     <div class="field">
       <span class="fi">📍</span>
       <span class="fn" id="odisplay" style="color:var(--muted);font-size:13px">Not set — search above or tap map</span>
     </div>
-    <div class="slbl">Time Settings</div>
+
+    <div class="slbl">Incident Started</div>
     <div class="field">
-      <span class="fi">⏱</span><span class="fn">Incident started</span>
+      <span class="fi">⏱</span><span class="fn">Minutes ago</span>
       <input class="finp" type="number" id="e-delay" value="0" min="0" max="999" step="1"/>
-      <span class="fu">min ago</span>
+      <span class="fu">min</span>
     </div>
-    <div class="slbl">Cordon Speeds</div>
-    <div class="field">
-      <span class="rdot" style="background:var(--run)"></span><span class="fn">Running / foot</span>
-      <input class="finp" type="number" id="e-run" value="6" min="1" max="40" step="0.5"/>
-      <span class="fu">km/h</span>
-    </div>
-    <div class="field">
-      <span class="rdot" style="background:var(--drive)"></span><span class="fn">Vehicle / road</span>
-      <input class="finp" type="number" id="e-drv" value="50" min="1" max="200" step="1"/>
-      <span class="fu">km/h</span>
-    </div>
+
+    <div class="slbl">Cordon Rings</div>
+    <div id="ring-rows"></div>
+
     <div class="slbl">Live Data</div>
-    <div class="estats">
-      <div class="cs"><div class="csv tc" id="e-t">0:00</div><div class="csl">Time</div></div>
-      <div class="cs"><div class="csv rc" id="e-r">0 m</div><div class="csl">Run radius</div></div>
-      <div class="cs"><div class="csv dc" id="e-d">0 m</div><div class="csl">Drive radius</div></div>
-    </div>
+    <div class="estats" id="e-stats-row"></div>
+
     <div class="ebtns">
       <button class="eb eb-go" id="e-go" onclick="startTimer()">▶ Start</button>
       <button class="eb eb-st" id="e-stop" onclick="stopTimer()" disabled>⏹ Stop</button>
@@ -199,264 +222,107 @@
 
 <script>
 // ═══════════════════════════════════════
-//  BUNDLED NZ LOCATION DATABASE
-//  No network needed — instant search
+//  INCIDENT TYPES
+// ═══════════════════════════════════════
+const TYPES = {
+  general: { label:'General',  icon:'🚨', color:'#ffb020' },
+  police:  { label:'Police',   icon:'🚔', color:'#3b82f6' },
+  fire:    { label:'Fire',     icon:'🔥', color:'#ef4444' },
+  medical: { label:'Medical',  icon:'🚑', color:'#22c55e' },
+  hazmat:  { label:'Hazmat',   icon:'☢️', color:'#eab308' },
+  sar:     { label:'SAR',      icon:'🔍', color:'#f97316' },
+};
+
+let currentType = 'general';
+
+// ═══════════════════════════════════════
+//  CORDON RINGS CONFIG
+// ═══════════════════════════════════════
+const RINGS = [
+  { id:'walk',    label:'Walk',    speed:4,   color:'#a78bfa', on:false },
+  { id:'run',     label:'Run',     speed:6,   color:'#ff6b35', on:true  },
+  { id:'cycle',   label:'Cycle',   speed:20,  color:'#f59e0b', on:false },
+  { id:'vehicle', label:'Vehicle', speed:50,  color:'#00bfff', on:true  },
+  { id:'highway', label:'Highway', speed:100, color:'#ff4040', on:false },
+];
+
+let circles = {}; // id → {circle, tooltip}
+
+// ═══════════════════════════════════════
+//  BUNDLED NZ DATABASE
 // ═══════════════════════════════════════
 const DB = [
-  // ── NORTHLAND ──
-  ["Kaitaia","Northland",-35.1134,173.2653],
-  ["Ahipara","Northland",-35.1726,173.1566],
-  ["Kerikeri","Bay of Islands",-35.1831,173.9480],
-  ["Paihia","Bay of Islands",-35.2794,174.0892],
-  ["Russell","Bay of Islands",-35.2625,174.1208],
-  ["Whangarei","Northland",-35.7275,174.3236],
-  ["Whangarei Hospital","Northland",-35.7264,174.3148],
-  ["Dargaville","Northland",-35.9368,173.8867],
-  ["Wellsford","Northland",-36.2938,174.5193],
-  ["Mangawhai","Northland",-36.1271,174.5762],
-  ["Warkworth","Auckland",-36.4010,174.6594],
-  // ── AUCKLAND ──
-  ["Auckland CBD","Auckland",-36.8485,174.7633],
-  ["Sky Tower","Auckland CBD",-36.8484,174.7622],
-  ["Auckland City Hospital","Auckland",-36.8621,174.7694],
-  ["Auckland Police HQ","Auckland",-36.8627,174.7622],
-  ["Starship Hospital","Auckland",-36.8626,174.7699],
-  ["Middlemore Hospital","South Auckland",-36.9599,174.8450],
-  ["North Shore Hospital","Auckland",-36.8004,174.7572],
-  ["Waitakere Hospital","West Auckland",-36.8767,174.6432],
-  ["Auckland Airport","Manukau",-37.0082,174.7850],
-  ["Manukau","South Auckland",-36.9934,174.8794],
-  ["Otahuhu","Auckland",-36.9515,174.8357],
-  ["Papatoetoe","Auckland",-36.9829,174.8526],
-  ["Papakura","South Auckland",-37.0645,174.9440],
-  ["Pukekohe","Franklin",-37.2001,174.9019],
-  ["Waiuku","Franklin",-37.2488,174.7303],
-  ["Tuakau","Franklin",-37.2623,174.9563],
-  ["Takanini","Auckland",-37.0448,174.9069],
-  ["Manurewa","Auckland",-37.0185,174.8985],
-  ["Flat Bush","Auckland",-36.9631,174.9211],
-  ["Botany","Auckland",-36.9317,174.9142],
-  ["Howick","Auckland",-36.8985,174.9344],
-  ["Pakuranga","Auckland",-36.8954,174.9020],
-  ["Panmure","Auckland",-36.9015,174.8490],
-  ["Mt Wellington","Auckland",-36.9036,174.8344],
-  ["Ellerslie","Auckland",-36.9073,174.8020],
-  ["Penrose","Auckland",-36.9160,174.8138],
-  ["Onehunga","Auckland",-36.9238,174.7898],
-  ["Otahuhu","Auckland",-36.9515,174.8357],
-  ["Mangere","Auckland",-36.9779,174.7925],
-  ["Mangere Bridge","Auckland",-36.9744,174.7986],
-  ["Papatoetoe","Auckland",-36.9829,174.8526],
-  ["Remuera","Auckland",-36.8800,174.7944],
-  ["Parnell","Auckland",-36.8571,174.7799],
-  ["Newmarket","Auckland",-36.8692,174.7769],
-  ["Epsom","Auckland",-36.8919,174.7747],
-  ["Mt Eden","Auckland",-36.8790,174.7637],
-  ["Mt Roskill","Auckland",-36.9068,174.7399],
-  ["Three Kings","Auckland",-36.9069,174.7556],
-  ["Lynfield","Auckland",-36.9155,174.7295],
-  ["Hillsborough","Auckland",-36.9218,174.7455],
-  ["Royal Oak","Auckland",-36.9168,174.7737],
-  ["Greenlane","Auckland",-36.8979,174.7751],
-  ["Sandringham","Auckland",-36.8879,174.7469],
-  ["Mt Albert","Auckland",-36.8846,174.7319],
-  ["Avondale","Auckland",-36.8900,174.7175],
-  ["New Lynn","Auckland",-36.9068,174.6874],
-  ["Glen Eden","Auckland",-36.9304,174.6564],
-  ["Titirangi","Auckland",-36.9307,174.6437],
-  ["Henderson","West Auckland",-36.8769,174.6362],
-  ["Waitakere","West Auckland",-36.8489,174.5442],
-  ["Kumeu","Auckland",-36.7768,174.5651],
-  ["Helensville","Auckland",-36.6729,174.4536],
-  ["Ponsonby","Auckland",-36.8542,174.7438],
-  ["Grey Lynn","Auckland",-36.8614,174.7366],
-  ["Kingsland","Auckland",-36.8709,174.7466],
-  ["Morningside","Auckland",-36.8724,174.7371],
-  ["Point Chevalier","Auckland",-36.8633,174.7188],
-  ["Westmere","Auckland",-36.8593,174.7209],
-  ["Herne Bay","Auckland",-36.8513,174.7298],
-  ["Freemans Bay","Auckland",-36.8509,174.7481],
-  ["Newton","Auckland",-36.8603,174.7559],
-  ["Grafton","Auckland",-36.8641,174.7707],
-  ["Takapuna","North Shore",-36.7878,174.7717],
-  ["Milford","North Shore",-36.7860,174.7610],
-  ["Devonport","North Shore",-36.8287,174.7960],
-  ["Stanley Bay","North Shore",-36.8236,174.7813],
-  ["Birkenhead","North Shore",-36.8225,174.7436],
-  ["Northcote","North Shore",-36.8136,174.7567],
-  ["Glenfield","North Shore",-36.7803,174.7195],
-  ["Albany","North Shore",-36.7278,174.7011],
-  ["Silverdale","Auckland",-36.6258,174.6717],
-  ["Orewa","Auckland",-36.5985,174.6936],
-  ["Whangaparaoa","Auckland",-36.6349,174.7255],
-  ["Waiheke Island","Auckland",-36.8010,175.0930],
-  // ── WAIKATO ──
-  ["Hamilton CBD","Waikato",-37.7870,175.2793],
-  ["Waikato Hospital","Hamilton",-37.7866,175.2875],
-  ["Hamilton Police","Hamilton",-37.7896,175.2767],
-  ["Cambridge","Waikato",-37.8839,175.4660],
-  ["Te Awamutu","Waikato",-38.0090,175.3285],
-  ["Huntly","Waikato",-37.5571,175.1567],
-  ["Ngaruawahia","Waikato",-37.6693,175.1573],
-  ["Raglan","Waikato",-37.8022,174.8736],
-  ["Taupo CBD","Waikato",-38.6843,176.0702],
-  ["Taupo Hospital","Taupo",-38.6873,176.0735],
-  ["Tokoroa","Waikato",-38.2267,175.8695],
-  ["Te Kuiti","Waikato",-38.3388,175.1590],
-  ["Otorohanga","Waikato",-38.1829,175.2108],
-  ["Putaruru","Waikato",-38.0505,175.7862],
-  // ── BAY OF PLENTY ──
-  ["Tauranga CBD","Bay of Plenty",-37.6870,176.1654],
-  ["Tauranga Hospital","Tauranga",-37.6935,176.1659],
-  ["Mt Maunganui","Bay of Plenty",-37.6380,176.1876],
-  ["Papamoa","Bay of Plenty",-37.7124,176.2736],
-  ["Rotorua CBD","Bay of Plenty",-38.1368,176.2497],
-  ["Rotorua Hospital","Rotorua",-38.1393,176.2414],
-  ["Whakatane","Bay of Plenty",-37.9530,176.9903],
-  ["Whakatane Hospital","Whakatane",-37.9561,176.9847],
-  ["Katikati","Bay of Plenty",-37.5523,175.9315],
-  ["Te Puke","Bay of Plenty",-37.7820,176.3292],
-  ["Opotiki","Bay of Plenty",-38.0054,177.2878],
-  ["Kawerau","Bay of Plenty",-38.0860,176.7068],
-  ["Murupara","Bay of Plenty",-38.4609,176.7014],
-  // ── GISBORNE ──
-  ["Gisborne CBD","Gisborne",-38.6623,178.0176],
-  ["Gisborne Hospital","Gisborne",-38.6604,178.0208],
-  // ── HAWKES BAY ──
-  ["Napier CBD","Hawkes Bay",-39.4902,176.9178],
-  ["Napier Hospital","Hawkes Bay",-39.4982,176.9119],
-  ["Hastings","Hawkes Bay",-39.6383,176.8399],
-  ["Havelock North","Hawkes Bay",-39.6630,176.8810],
-  ["Wairoa","Hawkes Bay",-39.0369,177.3602],
-  // ── TARANAKI ──
-  ["New Plymouth CBD","Taranaki",-39.0556,174.0752],
-  ["Taranaki Base Hospital","New Plymouth",-39.0584,174.0760],
-  ["Stratford","Taranaki",-39.3369,174.5220],
-  ["Hawera","Taranaki",-39.5931,174.2840],
-  ["Waitara","Taranaki",-39.0007,174.2335],
-  // ── MANAWATU-WHANGANUI ──
-  ["Palmerston North","Manawatu",-40.3523,175.6082],
+  ["Kaitaia","Northland",-35.1134,173.2653],["Kerikeri","Bay of Islands",-35.1831,173.9480],
+  ["Paihia","Bay of Islands",-35.2794,174.0892],["Whangarei","Northland",-35.7275,174.3236],
+  ["Whangarei Hospital","Northland",-35.7264,174.3148],["Dargaville","Northland",-35.9368,173.8867],
+  ["Warkworth","Auckland",-36.4010,174.6594],["Orewa","Auckland",-36.5985,174.6936],
+  ["Silverdale","Auckland",-36.6258,174.6717],["Whangaparaoa","Auckland",-36.6349,174.7255],
+  ["Auckland CBD","Auckland",-36.8485,174.7633],["Sky Tower","Auckland CBD",-36.8484,174.7622],
+  ["Auckland City Hospital","Auckland",-36.8621,174.7694],["Auckland Police HQ","Auckland",-36.8627,174.7622],
+  ["Starship Hospital","Auckland",-36.8626,174.7699],["Middlemore Hospital","South Auckland",-36.9599,174.8450],
+  ["North Shore Hospital","Auckland",-36.8004,174.7572],["Waitakere Hospital","West Auckland",-36.8767,174.6432],
+  ["Auckland Airport","Manukau",-37.0082,174.7850],["Manukau","South Auckland",-36.9934,174.8794],
+  ["Papakura","South Auckland",-37.0645,174.9440],["Pukekohe","Franklin",-37.2001,174.9019],
+  ["Botany","Auckland",-36.9317,174.9142],["Howick","Auckland",-36.8985,174.9344],
+  ["Pakuranga","Auckland",-36.8954,174.9020],["Takapuna","North Shore",-36.7878,174.7717],
+  ["Devonport","North Shore",-36.8287,174.7960],["Albany","North Shore",-36.7278,174.7011],
+  ["Henderson","West Auckland",-36.8769,174.6362],["Kumeu","Auckland",-36.7768,174.5651],
+  ["Ponsonby","Auckland",-36.8542,174.7438],["Newmarket","Auckland",-36.8692,174.7769],
+  ["Mt Eden","Auckland",-36.8790,174.7637],["Remuera","Auckland",-36.8800,174.7944],
+  ["Parnell","Auckland",-36.8571,174.7799],["New Lynn","Auckland",-36.9068,174.6874],
+  ["Glen Eden","Auckland",-36.9304,174.6564],["Onehunga","Auckland",-36.9238,174.7898],
+  ["Mangere","Auckland",-36.9779,174.7925],["Manurewa","Auckland",-37.0185,174.8985],
+  ["Waiheke Island","Auckland",-36.8010,175.0930],["Thames","Waikato",-37.1398,175.5394],
+  ["Coromandel Town","Waikato",-36.7598,175.4926],["Whitianga","Waikato",-36.8326,175.6981],
+  ["Hamilton CBD","Waikato",-37.7870,175.2793],["Waikato Hospital","Hamilton",-37.7866,175.2875],
+  ["Cambridge","Waikato",-37.8839,175.4660],["Te Awamutu","Waikato",-38.0090,175.3285],
+  ["Huntly","Waikato",-37.5571,175.1567],["Matamata","Waikato",-37.8085,175.7723],
+  ["Taupo CBD","Waikato",-38.6843,176.0702],["Taupo Hospital","Taupo",-38.6873,176.0735],
+  ["Tokoroa","Waikato",-38.2267,175.8695],["Te Kuiti","Waikato",-38.3388,175.1590],
+  ["Tauranga CBD","Bay of Plenty",-37.6870,176.1654],["Tauranga Hospital","Tauranga",-37.6935,176.1659],
+  ["Mt Maunganui","Bay of Plenty",-37.6380,176.1876],["Papamoa","Bay of Plenty",-37.7124,176.2736],
+  ["Rotorua CBD","Bay of Plenty",-38.1368,176.2497],["Rotorua Hospital","Rotorua",-38.1393,176.2414],
+  ["Whakatane","Bay of Plenty",-37.9530,176.9903],["Whakatane Hospital","Whakatane",-37.9561,176.9847],
+  ["Te Puke","Bay of Plenty",-37.7820,176.3292],["Gisborne CBD","Gisborne",-38.6623,178.0176],
+  ["Gisborne Hospital","Gisborne",-38.6604,178.0208],["Napier CBD","Hawkes Bay",-39.4902,176.9178],
+  ["Napier Hospital","Hawkes Bay",-39.4982,176.9119],["Hastings","Hawkes Bay",-39.6383,176.8399],
+  ["Havelock North","Hawkes Bay",-39.6630,176.8810],["Wairoa","Hawkes Bay",-39.0369,177.3602],
+  ["New Plymouth CBD","Taranaki",-39.0556,174.0752],["Taranaki Base Hospital","New Plymouth",-39.0584,174.0760],
+  ["Hawera","Taranaki",-39.5931,174.2840],["Palmerston North","Manawatu",-40.3523,175.6082],
   ["Palmerston North Hospital","Palmerston North",-40.3564,175.6149],
-  ["Whanganui","Manawatu-Whanganui",-39.9310,175.0540],
-  ["Whanganui Hospital","Whanganui",-39.9380,175.0580],
-  ["Levin","Horowhenua",-40.6218,175.2766],
-  ["Foxton","Horowhenua",-40.4717,175.3067],
-  ["Feilding","Manawatu",-40.2294,175.5656],
-  ["Dannevirke","Tararua",-40.2033,176.1046],
-  ["Ohakune","Manawatu-Whanganui",-39.4153,175.4079],
-  ["Taumarunui","Manawatu-Whanganui",-38.8757,175.2606],
-  // ── WELLINGTON ──
-  ["Wellington CBD","Wellington",-41.2865,174.7762],
-  ["Wellington Hospital","Wellington",-41.2978,174.7760],
-  ["Wellington Police HQ","Wellington",-41.2932,174.7802],
-  ["Wellington Airport","Wellington",-41.3272,174.8051],
-  ["Petone","Lower Hutt",-41.2278,174.8685],
-  ["Lower Hutt","Wellington",-41.2127,174.9087],
-  ["Hutt Hospital","Lower Hutt",-41.2149,174.9186],
-  ["Upper Hutt","Wellington",-41.1244,175.0708],
-  ["Porirua","Wellington",-41.1335,174.8441],
-  ["Paraparaumu","Kapiti",-40.9098,175.0178],
-  ["Waikanae","Kapiti",-40.8769,175.0718],
-  ["Masterton","Wairarapa",-40.9524,175.6575],
-  ["Greytown","Wairarapa",-41.0804,175.4614],
-  ["Carterton","Wairarapa",-41.0237,175.5315],
-  ["Featherston","Wairarapa",-41.1098,175.3285],
-  ["Thorndon","Wellington",-41.2740,174.7778],
-  ["Miramar","Wellington",-41.3188,174.8157],
-  ["Karori","Wellington",-41.2862,174.7380],
-  ["Johnsonville","Wellington",-41.2254,174.8043],
-  ["Tawa","Wellington",-41.1793,174.8273],
-  // ── NELSON / MARLBOROUGH ──
-  ["Nelson CBD","Nelson",-41.2706,173.2840],
-  ["Nelson Hospital","Nelson",-41.2795,173.2759],
-  ["Richmond","Nelson",-41.3387,173.1734],
-  ["Blenheim","Marlborough",-41.5134,173.9612],
-  ["Wairau Hospital","Blenheim",-41.5165,173.9714],
-  ["Picton","Marlborough",-41.2946,174.0015],
-  ["Kaikoura","Canterbury",-42.4002,173.6822],
-  ["Havelock","Marlborough",-41.2826,173.7742],
-  ["Motueka","Nelson",-41.1166,172.9939],
-  ["Takaka","Golden Bay",-40.8522,172.8074],
-  // ── WEST COAST ──
-  ["Westport","West Coast",-41.7555,171.6022],
-  ["Buller Hospital","Westport",-41.7513,171.6051],
-  ["Greymouth","West Coast",-42.4534,171.2111],
-  ["Grey Base Hospital","Greymouth",-42.4625,171.2027],
+  ["Whanganui","Manawatu-Whanganui",-39.9310,175.0540],["Whanganui Hospital","Whanganui",-39.9380,175.0580],
+  ["Levin","Horowhenua",-40.6218,175.2766],["Feilding","Manawatu",-40.2294,175.5656],
+  ["Ohakune","Manawatu-Whanganui",-39.4153,175.4079],["Taumarunui","Manawatu-Whanganui",-38.8757,175.2606],
+  ["Wellington CBD","Wellington",-41.2865,174.7762],["Wellington Hospital","Wellington",-41.2978,174.7760],
+  ["Wellington Police HQ","Wellington",-41.2932,174.7802],["Wellington Airport","Wellington",-41.3272,174.8051],
+  ["Lower Hutt","Wellington",-41.2127,174.9087],["Hutt Hospital","Lower Hutt",-41.2149,174.9186],
+  ["Upper Hutt","Wellington",-41.1244,175.0708],["Porirua","Wellington",-41.1335,174.8441],
+  ["Paraparaumu","Kapiti",-40.9098,175.0178],["Masterton","Wairarapa",-40.9524,175.6575],
+  ["Nelson CBD","Nelson",-41.2706,173.2840],["Nelson Hospital","Nelson",-41.2795,173.2759],
+  ["Richmond","Nelson",-41.3387,173.1734],["Blenheim","Marlborough",-41.5134,173.9612],
+  ["Picton","Marlborough",-41.2946,174.0015],["Kaikoura","Canterbury",-42.4002,173.6822],
+  ["Westport","West Coast",-41.7555,171.6022],["Greymouth","West Coast",-42.4534,171.2111],
   ["Hokitika","West Coast",-42.7163,170.9736],
-  ["Franz Josef","West Coast",-43.3884,170.1820],
-  ["Haast","West Coast",-43.8803,169.0495],
-  // ── CANTERBURY ──
-  ["Christchurch CBD","Canterbury",-43.5321,172.6362],
-  ["Christchurch Hospital","Christchurch",-43.5341,172.6367],
-  ["Christchurch Police HQ","Christchurch",-43.5300,172.6390],
-  ["Christchurch Airport","Canterbury",-43.4894,172.5322],
-  ["Burwood Hospital","Christchurch",-43.5012,172.7056],
-  ["Riccarton","Christchurch",-43.5340,172.5981],
-  ["Merivale","Christchurch",-43.5131,172.6307],
-  ["Sumner","Christchurch",-43.5693,172.7628],
-  ["Lyttelton","Christchurch",-43.6029,172.7199],
-  ["New Brighton","Christchurch",-43.5084,172.7422],
-  ["Hornby","Christchurch",-43.5614,172.5476],
-  ["Rolleston","Canterbury",-43.5910,172.3784],
-  ["Rangiora","Canterbury",-43.3042,172.5945],
-  ["Kaiapoi","Canterbury",-43.3822,172.6569],
-  ["Pegasus","Canterbury",-43.3241,172.6454],
-  ["Ashburton","Canterbury",-43.9004,171.7289],
-  ["Ashburton Hospital","Ashburton",-43.9034,171.7261],
-  ["Timaru CBD","South Canterbury",-44.3960,171.2553],
-  ["Timaru Hospital","Timaru",-44.3998,171.2575],
-  ["Temuka","South Canterbury",-44.2378,171.2793],
-  ["Geraldine","South Canterbury",-44.0963,171.2463],
-  ["Fairlie","South Canterbury",-44.1001,170.8330],
-  ["Twizel","Mackenzie",-44.2585,170.1001],
-  ["Tekapo","Mackenzie",-44.0037,170.4773],
-  ["Akaroa","Canterbury",-43.8030,172.9683],
-  // ── OTAGO ──
-  ["Dunedin CBD","Otago",-45.8788,170.5028],
-  ["Dunedin Hospital","Dunedin",-45.8785,170.5124],
-  ["Dunedin Police","Dunedin",-45.8769,170.5075],
-  ["Dunedin Airport","Otago",-45.9281,170.1983],
-  ["South Dunedin","Otago",-45.9049,170.4964],
-  ["Mosgiel","Otago",-45.8755,170.3464],
-  ["Port Chalmers","Otago",-45.8191,170.6296],
-  ["Balclutha","Otago",-46.2378,169.7473],
-  ["Milton","Otago",-46.1194,169.9679],
-  ["Palmerston","Otago",-45.4774,170.7185],
-  ["Oamaru","Otago",-45.0966,170.9714],
-  ["North Otago Hospital","Oamaru",-45.0942,170.9676],
-  ["Alexandra","Otago",-45.2476,169.3812],
-  ["Clyde","Otago",-45.1934,169.3215],
-  ["Cromwell","Otago",-45.0434,169.1952],
-  ["Wanaka","Otago",-44.7027,169.1321],
-  ["Queenstown","Otago",-45.0312,168.6626],
-  ["Queenstown Lakes Hospital","Queenstown",-45.0176,168.6701],
-  ["Arrowtown","Otago",-44.9416,168.8243],
-  ["Glenorchy","Otago",-44.8510,168.3965],
-  ["Hawea","Otago",-44.6022,169.2343],
-  // ── SOUTHLAND ──
-  ["Invercargill CBD","Southland",-46.4132,168.3538],
-  ["Southland Hospital","Invercargill",-46.4152,168.3640],
-  ["Invercargill Airport","Southland",-46.4124,168.3128],
-  ["Gore","Southland",-46.1006,168.9413],
-  ["Riverton","Southland",-46.3567,168.0133],
-  ["Winton","Southland",-46.1434,168.3270],
-  ["Lumsden","Southland",-45.7400,168.4476],
-  ["Te Anau","Southland",-45.4143,167.7193],
+  ["Christchurch CBD","Canterbury",-43.5321,172.6362],["Christchurch Hospital","Christchurch",-43.5341,172.6367],
+  ["Christchurch Police HQ","Christchurch",-43.5300,172.6390],["Christchurch Airport","Canterbury",-43.4894,172.5322],
+  ["Riccarton","Christchurch",-43.5340,172.5981],["Rangiora","Canterbury",-43.3042,172.5945],
+  ["Rolleston","Canterbury",-43.5910,172.3784],["Kaiapoi","Canterbury",-43.3822,172.6569],
+  ["Ashburton","Canterbury",-43.9004,171.7289],["Ashburton Hospital","Ashburton",-43.9034,171.7261],
+  ["Timaru CBD","South Canterbury",-44.3960,171.2553],["Timaru Hospital","Timaru",-44.3998,171.2575],
+  ["Twizel","Mackenzie",-44.2585,170.1001],["Tekapo","Mackenzie",-44.0037,170.4773],
+  ["Queenstown","Otago",-45.0312,168.6626],["Queenstown Hospital","Queenstown",-45.0176,168.6701],
+  ["Wanaka","Otago",-44.7027,169.1321],["Arrowtown","Otago",-44.9416,168.8243],
+  ["Alexandra","Otago",-45.2476,169.3812],["Cromwell","Otago",-45.0434,169.1952],
+  ["Oamaru","Otago",-45.0966,170.9714],["Dunedin CBD","Otago",-45.8788,170.5028],
+  ["Dunedin Hospital","Dunedin",-45.8785,170.5124],["Dunedin Airport","Otago",-45.9281,170.1983],
+  ["Mosgiel","Otago",-45.8755,170.3464],["Balclutha","Otago",-46.2378,169.7473],
+  ["Invercargill CBD","Southland",-46.4132,168.3538],["Southland Hospital","Invercargill",-46.4152,168.3640],
+  ["Gore","Southland",-46.1006,168.9413],["Te Anau","Southland",-45.4143,167.7193],
   ["Milford Sound","Southland",-44.6717,167.9253],
-  ["Stewart Island","Southland",-46.8979,168.1332],
-  // ── COROMANDEL / EAST ──
-  ["Thames","Waikato",-37.1398,175.5394],
-  ["Paeroa","Waikato",-37.3760,175.6787],
-  ["Coromandel Town","Waikato",-36.7598,175.4926],
-  ["Whitianga","Waikato",-36.8326,175.6981],
-  ["Tairua","Waikato",-37.0059,175.8524],
-  ["Whangamata","Waikato",-37.2010,175.8693],
-  ["Matamata","Waikato",-37.8085,175.7723],
-  ["Morrinsville","Waikato",-37.6578,175.5352],
 ];
 
 // ═══════════════════════════════════════
-//  MAP INIT
+//  MAP
 // ═══════════════════════════════════════
 const map = L.map('map',{zoomControl:true}).setView([-36.8485,174.7633],13);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
@@ -467,84 +333,155 @@ map.zoomControl.setPosition('topleft');
 // ═══════════════════════════════════════
 //  STATE
 // ═══════════════════════════════════════
-let origin=null,oMark=null,uMark=null,rCirc=null,dCirc=null;
+let origin=null,oMark=null,uMark=null;
 let startAt=null,going=false,ticker=null;
-let panelExp=false,dragY=null;
+let panelExp=false,dragY=null,searchTimer=null;
 const KM=1000/3600;
 const $=id=>document.getElementById(id);
 const fmt=m=>m>=1000?(m/1000).toFixed(2)+' km':Math.round(m)+' m';
 const fmtT=s=>{const m=Math.floor(s/60),ss=Math.floor(s%60);return m+':'+(ss<10?'0':'')+ss};
 
 // ═══════════════════════════════════════
-//  SEARCH — local instant + Nominatim API
+//  BUILD UI COMPONENTS
 // ═══════════════════════════════════════
-let searchTimer=null;
 
+// Incident type buttons
+const typeRow = $('type-row');
+Object.entries(TYPES).forEach(([key,t])=>{
+  const btn=document.createElement('button');
+  btn.className='type-btn'+(key===currentType?' active':'');
+  btn.dataset.type=key;
+  btn.innerHTML=`<span class="type-ico">${t.icon}</span><span class="type-lbl">${t.label}</span>`;
+  btn.addEventListener('click',()=>setIncidentType(key));
+  typeRow.appendChild(btn);
+});
+
+// Ring rows in expanded panel
+const ringRowsEl=$('ring-rows');
+RINGS.forEach(r=>{
+  const div=document.createElement('div');
+  div.className='ring-row'+(r.on?'':' off');
+  div.id='rrow-'+r.id;
+  div.innerHTML=`
+    <span class="ring-dot" style="background:${r.color}"></span>
+    <span class="ring-name">${r.label}</span>
+    <input class="ring-speed" type="number" id="rspd-${r.id}" value="${r.speed}" min="1" max="300" step="0.5"/>
+    <span class="ring-unit">km/h</span>
+    <button class="toggle ${r.on?'on':'off'}" id="rtog-${r.id}" data-ring="${r.id}"></button>`;
+  ringRowsEl.appendChild(div);
+  document.getElementById('rspd-'+r.id).addEventListener('input',()=>{if(origin)draw()});
+  document.getElementById('rtog-'+r.id).addEventListener('click',()=>toggleRing(r.id));
+});
+
+// Stat boxes (collapsed + expanded)
+function buildStats(containerId){
+  const el=$(containerId);
+  el.innerHTML='';
+  RINGS.forEach(r=>{
+    const d=document.createElement('div');
+    d.className='cs'+(r.on?'':' off');
+    d.id=(containerId==='c-stats-row'?'c':'e')+'-'+r.id;
+    d.innerHTML=`<div class="csv" style="color:${r.color}">0 m</div><div class="csl">${r.label}</div>`;
+    el.appendChild(d);
+  });
+}
+buildStats('c-stats-row');
+buildStats('e-stats-row');
+
+// ═══════════════════════════════════════
+//  INCIDENT TYPE
+// ═══════════════════════════════════════
+function setIncidentType(key){
+  currentType=key;
+  const t=TYPES[key];
+  document.querySelectorAll('.type-btn').forEach(b=>b.classList.toggle('active',b.dataset.type===key));
+  document.documentElement.style.setProperty('--acc',t.color);
+  $('brand-ico').textContent=t.icon;
+  $('brand-ico').style.background=t.color;
+  $('brand-type').textContent=t.label;
+  // Update origin pin colour
+  if(origin&&oMark){
+    map.removeLayer(oMark);
+    oMark=L.marker(origin,{icon:makePin(t.color,t.color+'66',18)})
+      .addTo(map).bindPopup(popupHTML());
+  }
+}
+
+// ═══════════════════════════════════════
+//  RING TOGGLE
+// ═══════════════════════════════════════
+function toggleRing(id){
+  const r=RINGS.find(x=>x.id===id);
+  r.on=!r.on;
+  $('rtog-'+id).className='toggle '+(r.on?'on':'off');
+  $('rrow-'+id).className='ring-row'+(r.on?'':' off');
+  // Update stat boxes
+  ['c','e'].forEach(p=>{
+    const el=$(p+'-'+id);
+    if(el) el.className='cs'+(r.on?'':' off');
+  });
+  // Remove circle if turning off
+  if(!r.on && circles[id]){
+    map.removeLayer(circles[id]);
+    delete circles[id];
+  }
+  if(origin) draw();
+}
+
+// ═══════════════════════════════════════
+//  SEARCH
+// ═══════════════════════════════════════
 $('sinp').addEventListener('input',function(){
   const q=this.value.trim();
   $('sclr').classList.toggle('on',q.length>0);
   clearTimeout(searchTimer);
   if(q.length<2){closeSR();return}
-
-  // Show local matches instantly while API loads
+  // Show local matches instantly
   const lq=q.toLowerCase();
-  const local=DB.filter(r=>r[0].toLowerCase().includes(lq)||r[1].toLowerCase().includes(lq)).slice(0,4);
-  renderSR(local,q,true);
-
-  // Fetch real address results after short delay
-  searchTimer=setTimeout(()=>nominatimSearch(q),400);
+  const local=DB.filter(r=>r[0].toLowerCase().includes(lq)||r[1].toLowerCase().includes(lq)).slice(0,5);
+  renderSR(local,true);
+  // Then fetch real results
+  searchTimer=setTimeout(()=>nominatimSearch(q),450);
 });
 
 async function nominatimSearch(q){
   try{
-    const url='https://nominatim.openstreetmap.org/search?format=json&limit=6&q='+encodeURIComponent(q);
-    const r=await fetch(url);
-    if(!r.ok) throw new Error(r.status);
+    const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=6&q='+encodeURIComponent(q));
+    if(!r.ok)throw new Error();
     const data=await r.json();
-    if(!data||!data.length){
-      const lq=q.toLowerCase();
-      const local=DB.filter(r=>r[0].toLowerCase().includes(lq)||r[1].toLowerCase().includes(lq)).slice(0,6);
-      renderSR(local,q,false);
-      return;
-    }
+    if(!data||!data.length) return; // keep local results
     const hits=data.map(it=>{
-      const parts=it.display_name.split(', ');
-      return [parts.slice(0,2).join(', '), parts.slice(2,5).join(', '),
-              parseFloat(it.lat), parseFloat(it.lon)];
+      const p=it.display_name.split(', ');
+      return [p.slice(0,2).join(', '),p.slice(2,5).join(', '),parseFloat(it.lat),parseFloat(it.lon)];
     });
-    renderSR(hits,q,false);
-  }catch(e){
-    const lq=q.toLowerCase();
-    const local=DB.filter(r=>r[0].toLowerCase().includes(lq)||r[1].toLowerCase().includes(lq)).slice(0,6);
-    renderSR(local,q,false);
-  }
+    renderSR(hits,false);
+  }catch(e){}
 }
 
-function renderSR(hits,q,loading=false){
+function renderSR(hits,loading){
   const box=$('sres');
   box.innerHTML='';
   if(!hits.length&&!loading){
-    box.innerHTML='<div class="ri-msg">No results — try a different search or tap map</div>';
+    box.innerHTML='<div class="ri-msg">No results — tap map to set location</div>';
     box.classList.add('open');return;
   }
-  if(loading&&hits.length===0){
+  if(loading&&!hits.length){
     box.innerHTML='<div class="ri-msg">Searching…</div>';
     box.classList.add('open');return;
   }
   hits.forEach(r=>{
     const d=document.createElement('div');
     d.className='ri';
-    d.innerHTML=`<div class="ri-icon">📍</div><div class="ri-t"><div class="ri-n">${r[0]}</div><div class="ri-s">${r[1]}</div></div>`;
+    d.innerHTML=`<div class="ri-icon">${TYPES[currentType].icon}</div><div class="ri-t"><div class="ri-n">${r[0]}</div><div class="ri-s">${r[1]}</div></div>`;
     const pick=()=>{
-      $('sinp').value=r[0]+', '+r[1];
-      $('sclr').classList.add('on');
+      $('sinp').value=r[0]; $('sclr').classList.add('on');
       closeSR();
       const ll=L.latLng(r[2],r[3]);
-      map.setView(ll,14);
-      setOrigin(ll,r[0]+', '+r[1]);
+      map.setView(ll,15);
+      setOrigin(ll,r[0]+(r[1]?', '+r[1]:''));
     };
     d.addEventListener('click',pick);
-    d.addEventListener('touchend',e=>{e.preventDefault();pick();});
+    d.addEventListener('touchend',e=>{e.preventDefault();pick()});
     box.appendChild(d);
   });
   box.classList.add('open');
@@ -552,11 +489,10 @@ function renderSR(hits,q,loading=false){
 
 function closeSR(){$('sres').classList.remove('open')}
 function clearSearch(){$('sinp').value='';$('sclr').classList.remove('on');closeSR()}
-
 document.addEventListener('touchstart',e=>{if(!$('top-bar').contains(e.target))closeSR()},{passive:true});
 
 // ═══════════════════════════════════════
-//  ORIGIN & RINGS
+//  PINS
 // ═══════════════════════════════════════
 function makePin(col,glow,sz=16){
   return L.divIcon({
@@ -572,46 +508,89 @@ function makePulse(col){
   });
 }
 
-function setOrigin(ll,label){
-  origin=ll;
-  if(oMark)map.removeLayer(oMark);
-  oMark=L.marker(ll,{icon:makePin('#ff4040','rgba(255,64,64,.3)',18)})
-    .addTo(map)
-    .bindPopup(`<div style="font-family:inherit;padding:2px"><div style="font-weight:700;font-size:13px;color:#ff6060">⚠ INCIDENT ORIGIN</div><div style="font-size:12px;color:#a0b0c0;margin-top:3px">${label||''}</div></div>`);
-  const short=(label||'').substring(0,45);
-  $('odisplay').textContent=short;
-  $('odisplay').style.color='var(--text)';
-  const ol=$('olbl');
-  ol.textContent='📍 '+short;
-  ol.style.display='block';
-  draw();
-  reposition();
+function popupHTML(){
+  const t=TYPES[currentType];
+  return `<div style="font-family:inherit;padding:2px"><div style="font-weight:700;font-size:13px;color:${t.color}">${t.icon} ${t.label.toUpperCase()} INCIDENT</div><div style="font-size:12px;color:#a0b0c0;margin-top:3px">${$('odisplay').textContent||''}</div></div>`;
 }
 
+// ═══════════════════════════════════════
+//  ORIGIN
+// ═══════════════════════════════════════
+async function setOrigin(ll,label){
+  origin=ll;
+  // Try reverse geocode if label is coordinates
+  if(!label || /^-?\d+\.\d+/.test(label)){
+    try{
+      const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${ll.lat}&lon=${ll.lng}`);
+      const d=await r.json();
+      if(d.display_name){
+        const parts=d.display_name.split(', ');
+        label=parts.slice(0,4).join(', ');
+      }
+    }catch(e){}
+  }
+
+  const t=TYPES[currentType];
+  if(oMark)map.removeLayer(oMark);
+  oMark=L.marker(ll,{icon:makePin(t.color,t.color+'66',18)}).addTo(map);
+  $('odisplay').textContent=label||'';
+  $('odisplay').style.color='var(--text)';
+  const ol=$('olbl');
+  ol.textContent=t.icon+' '+(label||'').substring(0,50);
+  ol.style.display='block';
+  // Update popup after display set
+  oMark.bindPopup(popupHTML());
+  draw();
+  reposition();
+  $('stxt').textContent='Origin set — ready to track';
+}
+
+// ═══════════════════════════════════════
+//  DRAW RINGS
+// ═══════════════════════════════════════
 function draw(){
   if(!origin)return;
   const delay=(parseFloat($('e-delay').value)||0)*60;
   const liveS=going?(Date.now()-startAt)/1000:0;
   const total=liveS+delay;
-  const rR=(parseFloat($('e-run').value)||6)*KM*total;
-  const dR=(parseFloat($('e-drv').value)||50)*KM*total;
-  if(rCirc){rCirc.setLatLng(origin);rCirc.setRadius(rR);}
-  else rCirc=L.circle(origin,{radius:rR,color:'#ff4040',fillColor:'#ff4040',fillOpacity:.1,weight:2.5,dashArray:'6 4'}).addTo(map);
-  if(dCirc){dCirc.setLatLng(origin);dCirc.setRadius(dR);}
-  else dCirc=L.circle(origin,{radius:dR,color:'#00bfff',fillColor:'#00bfff',fillOpacity:.06,weight:2.5,dashArray:'6 4'}).addTo(map);
-  const ts=going?(Date.now()-startAt)/1000:0;
-  const tv=fmtT(ts+delay);
-  const rv=fmt(rR), dv=fmt(dR);
-  $('c-t').textContent=$('e-t').textContent=tv;
-  $('c-r').textContent=$('e-r').textContent=rv;
-  $('c-d').textContent=$('e-d').textContent=dv;
+
+  RINGS.forEach(r=>{
+    const speed=(parseFloat($('rspd-'+r.id).value)||r.speed)*KM;
+    const radius=speed*total;
+
+    if(!r.on){
+      if(circles[r.id]){map.removeLayer(circles[r.id]);delete circles[r.id]}
+      return;
+    }
+
+    if(circles[r.id]){
+      circles[r.id].setLatLng(origin);
+      circles[r.id].setRadius(radius);
+      circles[r.id].setTooltipContent(r.label+': '+fmt(radius));
+    } else {
+      const c=L.circle(origin,{
+        radius,color:r.color,fillColor:r.color,fillOpacity:.07,weight:2,dashArray:'6 4'
+      }).addTo(map);
+      c.bindTooltip(r.label+': '+fmt(radius),{
+        permanent:true,direction:'right',className:'ring-label',offset:[10,0]
+      });
+      circles[r.id]=c;
+    }
+
+    // Update stat displays
+    const fv=fmt(radius);
+    ['c','e'].forEach(p=>{
+      const el=$(p+'-'+r.id);
+      if(el) el.querySelector('.csv').textContent=fv;
+    });
+  });
 }
 
 // ═══════════════════════════════════════
 //  TIMER
 // ═══════════════════════════════════════
 function startTimer(){
-  if(!origin){alert('Set an incident location first — search above or tap the map.');return}
+  if(!origin){alert('Set an incident location first.');return}
   if(going)return;
   going=true;startAt=Date.now();
   ticker=setInterval(draw,300);draw();
@@ -633,51 +612,86 @@ function stopTimer(){
 
 function resetTimer(){
   stopTimer();startAt=null;
-  if(rCirc){map.removeLayer(rCirc);rCirc=null}
-  if(dCirc){map.removeLayer(dCirc);dCirc=null}
+  Object.values(circles).forEach(c=>map.removeLayer(c));
+  circles={};
   $('sdot').className='sdot';
   $('stxt').textContent='Reset — ready';
-  ['c-t','c-r','c-d','e-t','e-r','e-d'].forEach(id=>{$(id).textContent=id.includes('-t')?'0:00':'0 m'});
+  RINGS.forEach(r=>{
+    ['c','e'].forEach(p=>{
+      const el=$(p+'-'+r.id);
+      if(el)el.querySelector('.csv').textContent='0 m';
+    });
+  });
 }
+
+// ═══════════════════════════════════════
+//  SHARE
+// ═══════════════════════════════════════
+function shareIncident(){
+  const t=TYPES[currentType];
+  let text=t.icon+' '+t.label+' Incident — Cordon Tracker';
+  let url=window.location.href.split('?')[0];
+  if(origin){
+    url+=`?lat=${origin.lat.toFixed(6)}&lon=${origin.lng.toFixed(6)}&type=${currentType}&delay=${$('e-delay').value}`;
+    text+='\n📍 '+($('odisplay').textContent||'Unknown location');
+    const active=RINGS.filter(r=>r.on);
+    if(active.length) text+='\n🔴 Active rings: '+active.map(r=>r.label).join(', ');
+  }
+  if(navigator.share){
+    navigator.share({title:'Cordon Tracker',text,url}).catch(()=>{});
+  } else {
+    navigator.clipboard.writeText(url).then(()=>alert('Link copied!')).catch(()=>alert(url));
+  }
+}
+
+// Restore from URL params
+(()=>{
+  const p=new URLSearchParams(window.location.search);
+  if(p.get('lat')&&p.get('lon')){
+    const ll=L.latLng(parseFloat(p.get('lat')),parseFloat(p.get('lon')));
+    if(p.get('type')&&TYPES[p.get('type')])setIncidentType(p.get('type'));
+    if(p.get('delay'))$('e-delay').value=p.get('delay');
+    map.setView(ll,14);
+    setOrigin(ll,'Shared incident location');
+  }
+})();
 
 // ═══════════════════════════════════════
 //  MY LOCATION
 // ═══════════════════════════════════════
 function getMyLocation(){
-  const btn=$('fab-loc');
-  btn.textContent='⏳';
-  if(!navigator.geolocation){alert('Geolocation not supported.\nOpen this file directly in Safari.');btn.textContent='📍';return}
+  const btn=$('fab-loc');btn.textContent='⏳';
+  if(!navigator.geolocation){alert('Geolocation not supported.');btn.textContent='📍';return}
   navigator.geolocation.getCurrentPosition(
     pos=>{
       btn.textContent='📍';
       const ll=L.latLng(pos.coords.latitude,pos.coords.longitude);
       if(uMark)map.removeLayer(uMark);
-      uMark=L.marker(ll,{icon:makePulse('var(--you)')})
+      uMark=L.marker(ll,{icon:makePulse('#00ff88')})
         .addTo(map).bindPopup('<div style="color:#00ff88;font-weight:700;font-size:13px">● Your Location</div>');
       map.setView(ll,15);
     },
-    err=>{
-      btn.textContent='📍';
-      alert('Location denied.\n\nTo fix:\nSettings → Privacy → Location Services → Safari → While Using App');
-    },
+    err=>{btn.textContent='📍';alert('Location denied.\nSettings → Privacy → Location Services → Safari');},
     {enableHighAccuracy:true,timeout:12000,maximumAge:0}
   );
 }
 
 // ═══════════════════════════════════════
-//  MAP CLICK
+//  MAP CLICK — reverse geocode on HTTPS
 // ═══════════════════════════════════════
 map.on('click',e=>{
   if(going)return;
   closeSR();
-  const lbl=e.latlng.lat.toFixed(5)+', '+e.latlng.lng.toFixed(5);
-  setOrigin(e.latlng,lbl);
-  $('sinp').value=lbl;$('sclr').classList.add('on');
+  setOrigin(e.latlng,null); // null triggers reverse geocode
+  $('sinp').value='';$('sclr').classList.remove('on');
 });
 
 function fitMap(){
-  if(dCirc&&dCirc.getRadius()>1)map.fitBounds(dCirc.getBounds().pad(.1));
-  else if(origin)map.setView(origin,14);
+  const active=Object.values(circles);
+  if(active.length){
+    const group=L.featureGroup(active);
+    map.fitBounds(group.getBounds().pad(.1));
+  } else if(origin) map.setView(origin,14);
 }
 
 // ═══════════════════════════════════════
@@ -686,14 +700,9 @@ function fitMap(){
 function expandPanel(){panelExp=true;$('panel').classList.add('exp');reposition()}
 function collapsePanel(){panelExp=false;$('panel').classList.remove('exp');reposition()}
 $('ptoggle').addEventListener('click',()=>panelExp?collapsePanel():expandPanel());
-
-// Swipe handle
 $('ptoggle').addEventListener('touchstart',e=>{dragY=e.touches[0].clientY},{passive:true});
 $('ptoggle').addEventListener('touchend',e=>{
-  if(dragY!==null){
-    const dy=e.changedTouches[0].clientY-dragY;
-    if(dy<-25)expandPanel();if(dy>25)collapsePanel();dragY=null;
-  }
+  if(dragY!==null){const dy=e.changedTouches[0].clientY-dragY;if(dy<-25)expandPanel();if(dy>25)collapsePanel();dragY=null}
 });
 
 function reposition(){
@@ -706,9 +715,7 @@ function reposition(){
 
 window.addEventListener('resize',reposition);
 setTimeout(reposition,150);
-
-// Redraw on settings change
-['e-delay','e-run','e-drv'].forEach(id=>$(id).addEventListener('input',()=>{if(origin)draw()}));
+$('e-delay').addEventListener('input',()=>{if(origin)draw()});
 </script>
 </body>
 </html>
