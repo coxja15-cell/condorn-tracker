@@ -4,9 +4,9 @@ const APP_FILES = [
   './',
   './index.html',
   './manifest.json',
+  './icon-180.png',
   './icon-192.png',
-  './icon-512.png',
-  './icon-180.png'
+  './icon-512.png'
 ];
 
 self.addEventListener('install', event => {
@@ -32,7 +32,6 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const request = event.request;
 
-  // Always get the latest HTML from the network.
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request)
@@ -45,15 +44,18 @@ self.addEventListener('fetch', event => {
 
           return response;
         })
-        .catch(() => caches.match('./index.html'))
+        .catch(() =>
+          caches.match('./index.html')
+        )
     );
 
     return;
   }
 
-  // Cache local app files.
   event.respondWith(
     caches.match(request)
-      .then(cached => cached || fetch(request))
+      .then(cached =>
+        cached || fetch(request)
+      )
   );
 });
