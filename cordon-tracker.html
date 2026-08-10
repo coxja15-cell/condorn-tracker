@@ -2,10 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Cordon">
+  <meta name="theme-color" content="#060d18">
+  <link rel="apple-touch-icon" href="icon-180.png">
   <title>Cordon Tracker</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -17,8 +19,9 @@
       --acc:#ffb020;--acc2:#ff8c00;
       --safe-top:env(safe-area-inset-top,0px);--safe-bot:env(safe-area-inset-bottom,0px);
     }
-    *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-    html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-family:-apple-system,'SF Pro Text',system-ui,sans-serif;color:var(--text);-webkit-font-smoothing:antialiased}
+    *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+    html,body{width:100%;height:100%;overflow:hidden;overscroll-behavior:none;background:var(--bg);font-family:-apple-system,'SF Pro Text',system-ui,sans-serif;color:var(--text);-webkit-font-smoothing:antialiased}
+    input,textarea{-webkit-user-select:text;user-select:text}
 
     /* MAP */
     #map{position:fixed;inset:0;z-index:0}
@@ -58,21 +61,25 @@
     .ri-msg{padding:14px;font-size:13px;color:var(--muted);text-align:center}
 
     /* FABS */
-    #fabs{position:fixed;right:12px;z-index:150;display:flex;flex-direction:column;gap:8px;transition:bottom .3s ease}
+    #fabs{position:fixed;right:12px;z-index:150;display:flex;flex-direction:column;gap:8px;transition:bottom .3s cubic-bezier(.32,.72,0,1)}
     .fab{width:46px;height:46px;background:var(--sur);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid var(--border2);border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:20px;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,.5);-webkit-user-select:none;user-select:none;transition:transform .15s}
     .fab:active{transform:scale(.91)}
     .fab-share{background:rgba(255,176,32,.15);border-color:rgba(255,176,32,.3)}
 
     /* ORIGIN LABEL */
-    #olbl{position:fixed;left:12px;z-index:150;background:var(--sur);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--border2);border-radius:10px;padding:6px 11px;font-size:12px;color:var(--muted);display:none;max-width:calc(100vw - 80px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:bottom .3s ease}
+    #olbl{position:fixed;left:12px;z-index:150;background:var(--sur);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--border2);border-radius:10px;padding:6px 11px;font-size:12px;color:var(--muted);display:none;max-width:calc(100vw - 80px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:bottom .3s cubic-bezier(.32,.72,0,1)}
 
     /* PANEL */
-    #panel{position:fixed;left:0;right:0;bottom:0;z-index:160;background:var(--s2);backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);border-top:1px solid var(--border2);border-radius:22px 22px 0 0;box-shadow:0 -4px 40px rgba(0,0,0,.5);padding-bottom:var(--safe-bot)}
+    #panel{position:fixed;left:0;right:0;bottom:0;z-index:160;background:var(--s2);backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);border-top:1px solid var(--border2);border-radius:22px 22px 0 0;box-shadow:0 -4px 40px rgba(0,0,0,.5);padding-bottom:var(--safe-bot);transition:transform .3s cubic-bezier(.32,.72,0,1)}
+    #panel.dragging{transition:none}
     .phandle{display:flex;justify-content:center;padding:10px 0 4px;cursor:pointer;touch-action:none}
     .pbar{width:38px;height:4px;background:rgba(255,255,255,.18);border-radius:2px}
 
+    /* CONTENT MORPH WRAPPER */
+    #pcontent{position:relative;overflow:hidden;transition:height .32s cubic-bezier(.32,.72,0,1)}
+
     /* COLLAPSED */
-    #vcol{padding:4px 14px 12px}
+    #vcol{padding:4px 14px 12px;transition:opacity .22s ease}
     .cstats{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-bottom:10px}
     .cs{background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:10px;padding:7px 4px;text-align:center}
     .cs.off{opacity:.3}
@@ -86,8 +93,8 @@
     .cb-sm{flex:0 0 50px;background:rgba(255,255,255,.06);color:var(--text);border:1px solid var(--border2)!important;font-size:18px}
 
     /* EXPANDED */
-    #vexp{display:none;padding:0 14px 14px;max-height:82vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
-    #panel.exp #vcol{display:none} #panel.exp #vexp{display:block}
+    #vexp{display:none;padding:0 14px 14px;max-height:82vh;overflow-y:auto;-webkit-overflow-scrolling:touch;transition:opacity .22s ease}
+
     .slbl{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin:14px 0 8px}
     .slbl:first-child{margin-top:0}
 
@@ -108,7 +115,7 @@
     .ring-speed::-webkit-outer-spin-button,.ring-speed::-webkit-inner-spin-button{-webkit-appearance:none}
     .ring-unit{font-size:11px;color:var(--muted);min-width:26px}
     .toggle{width:44px;height:26px;border-radius:13px;border:none;cursor:pointer;position:relative;flex-shrink:0;transition:background .2s;-webkit-user-select:none;user-select:none}
-    .toggle::after{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 1px 4px rgba(0,0,0,.3)}
+    .toggle::after{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .3s cubic-bezier(.34,1.56,.64,1);box-shadow:0 1px 4px rgba(0,0,0,.3)}
     .toggle.on::after{transform:translateX(18px)}
     .toggle.on{background:#00c853}
     .toggle.off{background:rgba(255,255,255,.2)}
@@ -174,6 +181,7 @@
 <div id="panel">
   <div class="phandle" id="ptoggle"><div class="pbar"></div></div>
 
+  <div id="pcontent">
   <!-- COLLAPSED -->
   <div id="vcol">
     <div class="cstats" id="c-stats-row"></div>
@@ -217,6 +225,7 @@
       <button class="eb eb-sm" onclick="resetTimer()">↺</button>
       <button class="eb eb-sm" onclick="collapsePanel()">▾</button>
     </div>
+  </div>
   </div>
 </div>
 
@@ -314,7 +323,7 @@ const DB = [
   ["Wanaka","Otago",-44.7027,169.1321],["Arrowtown","Otago",-44.9416,168.8243],
   ["Alexandra","Otago",-45.2476,169.3812],["Cromwell","Otago",-45.0434,169.1952],
   ["Oamaru","Otago",-45.0966,170.9714],["Dunedin CBD","Otago",-45.8788,170.5028],
-  ["Dunedin Hospital","Dunedin",-45.8785,170.5124],["Dunedin Airport","Otago",-45.9281,170.1983],
+  ["Dunedin Hospital","Otago",-45.8785,170.5124],["Dunedin Airport","Otago",-45.9281,170.1983],
   ["Mosgiel","Otago",-45.8755,170.3464],["Balclutha","Otago",-46.2378,169.7473],
   ["Invercargill CBD","Southland",-46.4132,168.3538],["Southland Hospital","Invercargill",-46.4152,168.3640],
   ["Gore","Southland",-46.1006,168.9413],["Te Anau","Southland",-45.4143,167.7193],
@@ -335,7 +344,7 @@ map.zoomControl.setPosition('topleft');
 // ═══════════════════════════════════════
 let origin=null,oMark=null,uMark=null;
 let startAt=null,going=false,ticker=null;
-let panelExp=false,dragY=null,searchTimer=null;
+let panelExp=false,searchTimer=null;
 const KM=1000/3600;
 const $=id=>document.getElementById(id);
 const fmt=m=>m>=1000?(m/1000).toFixed(2)+' km':Math.round(m)+' m';
@@ -695,19 +704,86 @@ function fitMap(){
 }
 
 // ═══════════════════════════════════════
-//  PANEL
+//  PANEL — morph + drag
 // ═══════════════════════════════════════
-function expandPanel(){panelExp=true;$('panel').classList.add('exp');reposition()}
-function collapsePanel(){panelExp=false;$('panel').classList.remove('exp');reposition()}
-$('ptoggle').addEventListener('click',()=>panelExp?collapsePanel():expandPanel());
-$('ptoggle').addEventListener('touchstart',e=>{dragY=e.touches[0].clientY},{passive:true});
-$('ptoggle').addEventListener('touchend',e=>{
-  if(dragY!==null){const dy=e.changedTouches[0].clientY-dragY;if(dy<-25)expandPanel();if(dy>25)collapsePanel();dragY=null}
+const PANEL=$('panel'),PTOG=$('ptoggle'),PCONTENT=$('pcontent');
+let morphTimer=null;
+
+function morph(toExpanded){
+  const incoming = toExpanded ? $('vexp') : $('vcol');
+  const outgoing = toExpanded ? $('vcol') : $('vexp');
+  clearTimeout(morphTimer);
+
+  const fromH = PCONTENT.getBoundingClientRect().height;
+
+  outgoing.style.position='absolute';
+  outgoing.style.left='0';
+  outgoing.style.right='0';
+  outgoing.style.top='0';
+
+  incoming.style.position='static';
+  incoming.style.display='block';
+  incoming.style.opacity='0';
+
+  void PCONTENT.offsetHeight; // reflow so scrollHeight reflects incoming's natural size
+  const toH = PCONTENT.scrollHeight;
+
+  PCONTENT.style.height = fromH+'px';
+  void PCONTENT.offsetHeight; // lock in start point before animating
+
+  requestAnimationFrame(()=>{
+    PCONTENT.style.height = toH+'px';
+    incoming.style.opacity='1';
+    outgoing.style.opacity='0';
+  });
+
+  reposition();
+
+  morphTimer=setTimeout(()=>{
+    outgoing.style.display='none';
+    outgoing.style.position='';
+    outgoing.style.opacity='';
+    incoming.style.position='';
+    PCONTENT.style.height='';
+    reposition();
+  },340);
+}
+
+function expandPanel(){if(panelExp)return;panelExp=true;PANEL.classList.add('exp');morph(true)}
+function collapsePanel(){if(!panelExp)return;panelExp=false;PANEL.classList.remove('exp');morph(false)}
+
+let dragStartY=0,dragCurY=0,dragging=false,dragT0=0,justDragged=false;
+
+PTOG.addEventListener('touchstart',e=>{
+  dragging=true;dragStartY=dragCurY=e.touches[0].clientY;dragT0=Date.now();
+  PANEL.classList.add('dragging');
+},{passive:true});
+
+PTOG.addEventListener('touchmove',e=>{
+  if(!dragging)return;
+  dragCurY=e.touches[0].clientY;
+  let dy=dragCurY-dragStartY;
+  if(panelExp&&dy<0)dy*=.35;   // rubber band past expanded
+  if(!panelExp&&dy>0)dy*=.35;  // rubber band past collapsed
+  PANEL.style.transform=`translateY(${dy}px)`;
+},{passive:true});
+
+PTOG.addEventListener('touchend',()=>{
+  if(!dragging)return;
+  dragging=false;
+  const dy=dragCurY-dragStartY,v=dy/Math.max(Date.now()-dragT0,1);
+  PANEL.classList.remove('dragging');
+  PANEL.style.transform='';
+  if(!panelExp&&(dy<-25||v<-.5))expandPanel();
+  else if(panelExp&&(dy>25||v>.5))collapsePanel();
+  justDragged=true;setTimeout(()=>justDragged=false,60);
 });
+
+PTOG.addEventListener('click',()=>{if(!justDragged)panelExp?collapsePanel():expandPanel()});
 
 function reposition(){
   requestAnimationFrame(()=>{
-    const ph=$('panel').getBoundingClientRect().height;
+    const ph=PANEL.getBoundingClientRect().height;
     $('fabs').style.bottom=(ph+12)+'px';
     $('olbl').style.bottom=(ph+12)+'px';
   });
