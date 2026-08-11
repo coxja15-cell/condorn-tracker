@@ -125,16 +125,26 @@
     }
 
     .ring-label {
-      background:rgba(255,255,255,.92)!important;
-      border:1px solid rgba(0,0,0,.08)!important;
-      border-radius:9px!important;
-      box-shadow:0 2px 8px rgba(0,0,0,.14)!important;
+      background:rgba(255,255,255,.96)!important;
+      border:1px solid rgba(0,0,0,.10)!important;
+      border-radius:10px!important;
+      box-shadow:0 2px 8px rgba(0,0,0,.16)!important;
       color:#111!important;
       font-size:11px!important;
-      font-weight:700!important;
-      padding:3px 7px!important;
+      font-weight:800!important;
+      padding:4px 8px!important;
       text-shadow:none!important;
       white-space:nowrap;
+    }
+
+    .ring-label::after {
+      content:"";
+      position:absolute;
+      width:5px;
+      height:5px;
+      border-radius:50%;
+      background:currentColor;
+      box-shadow:0 0 0 2px rgba(255,255,255,.8);
     }
 
     .ring-label::before {
@@ -249,6 +259,53 @@
 
     #fab-settings {
       color:#333;
+    }
+
+
+    /* ONE-TAP INCIDENT START */
+
+    #quick-start {
+      position:fixed;
+      left:50%;
+      transform:translateX(-50%) translateY(12px) scale(.96);
+      bottom:calc(var(--safe-bottom) + 82px);
+      z-index:405;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:9px;
+      min-width:190px;
+      height:50px;
+      padding:0 20px;
+      border:0;
+      border-radius:25px;
+      background:#ff3b30;
+      color:#fff;
+      box-shadow:0 7px 24px rgba(255,59,48,.34);
+      font-size:16px;
+      font-weight:800;
+      opacity:0;
+      pointer-events:none;
+      transition:opacity .2s ease, transform .2s ease, bottom .28s cubic-bezier(.32,.72,0,1);
+      -webkit-tap-highlight-color:transparent;
+    }
+
+    #quick-start.visible {
+      opacity:1;
+      pointer-events:auto;
+      transform:translateX(-50%) translateY(0) scale(1);
+    }
+
+    #quick-start:active {
+      transform:translateX(-50%) scale(.95);
+    }
+
+    .qs-icon {
+      font-size:13px;
+    }
+
+    @media (min-width:700px) {
+      #quick-start { max-width:230px; }
     }
 
     /* SEARCH PILL — BOTTOM, LIKE APPLE MAPS */
@@ -902,6 +959,11 @@
 
 <div id="olbl"></div>
 
+<button id="quick-start" onclick="quickStartIncident()" aria-label="Start incident">
+  <span class="qs-icon">▶</span>
+  <span>Start Incident</span>
+</button>
+
 <div id="search-area">
 
   <div id="sres"></div>
@@ -1033,6 +1095,10 @@ const RINGS = [
 ];
 
 let circles = {};
+let ringLabels = {};
+
+// Give each possible ring a different bearing so labels never stack at one point.
+const RING_BEARINGS = { walk: 0, run: 72, cycle: 144, vehicle: 216, highway: 288 };
 
 /* =========================================================
    NZ SEARCH DATABASE
@@ -1591,11 +1657,33 @@ async function setOrigin(ll,label) {
   reposition();
 
   $('stxt').textContent = 'Origin set — ready to track';
+  updateQuickStart();
 }
+
 
 /* =========================================================
    DRAW CORDON RINGS
    ========================================================= */
+
+function destinationPoint(originLL, distanceMeters, bearingDeg) {
+  const R = 6371000;
+  const brng = bearingDeg * Math.PI / 180;
+  const lat1 = originLL.lat * Math.PI / 180;
+  const lon1 = originLL.lng * Math.PI / 180;
+  const d = distanceMeters / R;
+
+  const lat2 = Math.asin(
+    Math.sin(lat1) * Math.cos(d) +
+    Math.cos(lat1) * Math.sin(d) * Math.cos(brng)
+  );
+
+  const lon2 = lon1 + Math.atan2(
+    Math.sin(brng) * Math.sin(d) * Math.cos(lat1),
+    Math.cos(d) - Math.sin(lat1) * Math.sin(lat2)
+  );
+
+  return L.latLng(lat2 * 180 / Math.PI, lon2 * 180 / Math.PI);
+}
 
 function draw() {
   if(!origin) return;
@@ -1621,6 +1709,10 @@ function draw() {
         map.removeLayer(circles[r.id]);
         delete circles[r.id];
       }
+      if(ringLabels[r.id]) {
+        map.removeLayer(ringLabels[r.id]);
+        delete ringLabels[r.id];
+      }
 
       ['c','e'].forEach(p => {
         const el = $(p+'-'+r.id);
@@ -1633,9 +1725,8 @@ function draw() {
     if(circles[r.id]) {
       circles[r.id].setLatLng(origin);
       circles[r.id].setRadius(radius);
-      circles[r.id].setTooltipContent(r.label+': '+fmt(radius));
     } else {
-      const c = L.circle(origin,{
+      circles[r.id] = L.circle(origin,{
         radius,
         color:r.color,
         fillColor:r.color,
@@ -1643,18 +1734,35 @@ function draw() {
         weight:2,
         dashArray:'6 4'
       }).addTo(map);
+    }
 
-      c.bindTooltip(
-        r.label+': '+fmt(radius),
-        {
-          permanent:true,
-          direction:'right',
-          className:'ring-label',
-          offset:[10,0]
-        }
-      );
+    // Labels sit at different points around the rings instead of all at 3 o'clock.
+    const labelPoint = destinationPoint(
+      origin,
+      Math.max(radius, 35),
+      RING_BEARINGS[r.id] || 0
+    );
 
-      circles[r.id] = c;
+    if(ringLabels[r.id]) {
+      ringLabels[r.id].setLatLng(labelPoint);
+      ringLabels[r.id].setIcon(L.divIcon({
+        className:'ring-label',
+        html:`<span style="color:${r.color}">${r.label}: ${fmt(radius)}</span>`,
+        iconSize:null,
+        iconAnchor:[0,0]
+      }));
+    } else {
+      ringLabels[r.id] = L.marker(labelPoint,{
+        interactive:false,
+        keyboard:false,
+        zIndexOffset:100
+      }).addTo(map);
+      ringLabels[r.id].setIcon(L.divIcon({
+        className:'ring-label',
+        html:`<span style="color:${r.color}">${r.label}: ${fmt(radius)}</span>`,
+        iconSize:null,
+        iconAnchor:[0,0]
+      }));
     }
 
     const fv = fmt(radius);
@@ -1669,6 +1777,24 @@ function draw() {
 /* =========================================================
    TIMER
    ========================================================= */
+
+function updateQuickStart() {
+  const btn = $('quick-start');
+  if(!btn) return;
+
+  if(origin && !going) btn.classList.add('visible');
+  else btn.classList.remove('visible');
+}
+
+function quickStartIncident() {
+  if(!origin) {
+    expandPanel();
+    $('sinp').focus();
+    return;
+  }
+
+  startTimer();
+}
 
 function startTimer() {
   if(!origin) {
@@ -1694,6 +1820,7 @@ function startTimer() {
   $('compact-status').style.color = 'var(--red)';
   $('incident-state').textContent = 'Live incident';
   $('incident-state').classList.add('live');
+  updateQuickStart();
 }
 
 function stopTimer() {
@@ -1715,6 +1842,7 @@ function stopTimer() {
   $('incident-state').classList.remove('live');
 
   draw();
+  updateQuickStart();
 }
 
 function resetTimer() {
@@ -1723,7 +1851,9 @@ function resetTimer() {
   startAt = null;
 
   Object.values(circles).forEach(c => map.removeLayer(c));
+  Object.values(ringLabels).forEach(m => map.removeLayer(m));
   circles = {};
+  ringLabels = {};
 
   $('sdot').className = 'sdot';
   $('stxt').textContent = origin
@@ -1742,6 +1872,7 @@ function resetTimer() {
       if(el) el.querySelector('.csv').textContent = '0 m';
     });
   });
+  updateQuickStart();
 }
 
 /* =========================================================
@@ -1991,6 +2122,9 @@ function reposition() {
 
     $('olbl').style.bottom =
       `calc(var(--safe-bottom) + ${84+panelOffset}px)`;
+
+    $('quick-start').style.bottom =
+      `calc(var(--safe-bottom) + ${82+panelOffset}px)`;
   });
 }
 
