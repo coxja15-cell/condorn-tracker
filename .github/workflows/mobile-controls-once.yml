@@ -1,0 +1,348 @@
+name: Apply mobile bottom controls
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch-ui:
+    if: ${{ !startsWith(github.event.head_commit.message, 'Apply mobile bottom controls') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Patch index.html
+        shell: python
+        run: |
+          from pathlib import Path
+
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+
+          old = '''    /* =========================================================
+       QUICK START
+       ========================================================= */'''
+          new = '''    /* =========================================================
+       QUICK START / BOTTOM ACTIONS
+       ========================================================= */'''
+          if old not in s:
+              raise SystemExit('Quick start section not found')
+          s = s.replace(old, new, 1)
+
+          old = '''    #quick-start {
+      position: fixed;
+      left: 50%;
+      transform: translateX(-50%) translateY(12px) scale(.96);
+      bottom: calc(var(--safe-bottom) + 82px);
+
+      z-index: 405;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+
+      min-width: 190px;
+      height: 50px;
+      padding: 0 20px;
+
+      border-radius: 25px;
+
+      background: var(--red);
+      color: #fff;
+
+      box-shadow: 0 7px 24px rgba(255, 59, 48, .34);
+
+      font-size: 16px;
+      font-weight: 800;
+
+      opacity: 0;
+      pointer-events: none;
+
+      transition:
+        opacity .2s ease,
+        transform .2s ease,
+        bottom .28s cubic-bezier(.32, .72, 0, 1);
+    }
+
+    #quick-start.visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateX(-50%) translateY(0) scale(1);
+    }
+
+    #quick-start:active {
+      transform: translateX(-50%) scale(.95);
+    }
+
+    .qs-icon {
+      font-size: 13px;
+    }
+
+    @media (min-width: 700px) {
+      #quick-start {
+        max-width: 230px;
+      }
+    }'''
+          new = '''    #quick-start,
+    #bottom-stop {
+      position: fixed;
+      bottom: calc(var(--safe-bottom) + 82px);
+
+      z-index: 405;
+
+      width: calc(50% - 19px);
+      min-width: 0;
+      height: 56px;
+      padding: 0 14px;
+
+      border-radius: 16px;
+
+      color: #fff;
+
+      box-shadow: 0 7px 24px rgba(0, 0, 0, .20);
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+
+      font-size: 16px;
+      font-weight: 800;
+      line-height: 1;
+
+      opacity: 0;
+      pointer-events: none;
+
+      transform: translateY(12px) scale(.97);
+
+      transition:
+        opacity .2s ease,
+        transform .2s ease,
+        bottom .28s cubic-bezier(.32, .72, 0, 1);
+
+      -webkit-user-select: none;
+      user-select: none;
+      touch-action: manipulation;
+    }
+
+    #quick-start {
+      left: 14px;
+      background: var(--green);
+    }
+
+    #bottom-stop {
+      right: 14px;
+      background: var(--red);
+    }
+
+    #quick-start.visible,
+    #bottom-stop.visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0) scale(1);
+    }
+
+    #quick-start:active,
+    #bottom-stop:active {
+      transform: translateY(1px) scale(.97);
+    }
+
+    .qs-icon {
+      font-size: 13px;
+    }
+
+    @media (min-width: 700px) {
+      #quick-start,
+      #bottom-stop {
+        width: min(320px, calc(50% - 19px));
+      }
+    }'''
+          if old not in s:
+              raise SystemExit('Quick start CSS block not found')
+          s = s.replace(old, new, 1)
+
+          old = '''    #search-area {
+      position: fixed;
+      left: 14px;
+      right: 14px;
+      bottom: calc(var(--safe-bottom) + 14px);'''
+          new = '''    #search-area {
+      position: fixed;
+      left: 14px;
+      right: 14px;
+      bottom: calc(var(--safe-bottom) + 14px);'''
+          if old not in s:
+              raise SystemExit('Search area block not found')
+
+          old = '''    #search-card {
+      width: 100%;
+      min-height: 56px;'''
+          new = '''    #search-card {
+      width: 100%;
+      min-height: 56px;
+
+      /* Keep the address search clearly separated below Start / Stop. */
+      margin-top: 0;'''
+          if old not in s:
+              raise SystemExit('Search card block not found')
+          s = s.replace(old, new, 1)
+
+          old = '''  <button
+    id="quick-start"
+    onclick="quickStartIncident()"
+    aria-label="Start incident"
+  >
+    <span class="qs-icon">▶</span>
+    <span>Start Incident</span>
+  </button>'''
+          new = '''  <button
+    id="quick-start"
+    onclick="quickStartIncident()"
+    aria-label="Start incident"
+  >
+    <span class="qs-icon">▶</span>
+    <span>Start</span>
+  </button>
+
+  <button
+    id="bottom-stop"
+    onclick="stopTimer()"
+    aria-label="Stop incident"
+  >
+    <span class="qs-icon">■</span>
+    <span>Stop</span>
+  </button>'''
+          if old not in s:
+              raise SystemExit('Quick start HTML not found')
+          s = s.replace(old, new, 1)
+
+          old = '''    function updateQuickStart() {
+
+      const btn = $('quick-start');
+
+      if (!btn) {
+        return;
+      }
+
+      if (origin && !going) {
+        btn.classList.add('visible');
+      } else {
+        btn.classList.remove('visible');
+      }
+    }'''
+          new = '''    function updateQuickStart() {
+
+      const startBtn = $('quick-start');
+      const stopBtn = $('bottom-stop');
+
+      if (!startBtn || !stopBtn) {
+        return;
+      }
+
+      startBtn.classList.toggle(
+        'visible',
+        !!origin && !going
+      );
+
+      stopBtn.classList.toggle(
+        'visible',
+        !!origin && going
+      );
+    }'''
+          if old not in s:
+              raise SystemExit('updateQuickStart function not found')
+          s = s.replace(old, new, 1)
+
+          old = '''        $('quick-start').style.bottom =
+          `calc(
+            var(--safe-bottom) +
+            ${82 + panelOffset}px
+          )`;'''
+          new = '''        const actionBottom =
+          `calc(
+            var(--safe-bottom) +
+            ${82 + panelOffset}px
+          )`;
+
+        $('quick-start').style.bottom = actionBottom;
+        $('bottom-stop').style.bottom = actionBottom;'''
+          if old not in s:
+              raise SystemExit('Quick start reposition block not found')
+          s = s.replace(old, new, 1)
+
+          old = '''    RINGS.forEach(r => {
+
+        const speed =
+          (
+            parseFloat(
+              $('rspd-' + r.id).value
+            ) || r.speed
+          ) * KM;'''
+          new = '''    RINGS.forEach((r, ringIndex) => {
+
+        const speed =
+          (
+            parseFloat(
+              $('rspd-' + r.id).value
+            ) || r.speed
+          ) * KM;'''
+          if old not in s:
+              raise SystemExit('Ring draw loop not found')
+          s = s.replace(old, new, 1)
+
+          old = '''            Math.max(radius, 35),
+            RING_BEARINGS[r.id] || 0'''
+          new = '''            Math.max(
+              radius,
+              35 + (ringIndex * 42)
+            ),
+            RING_BEARINGS[r.id] || 0'''
+          if old not in s:
+              raise SystemExit('Ring label position block not found')
+          s = s.replace(old, new, 1)
+
+          marker = '  </style>\n</head>'
+          css = '''
+
+    /* =========================================================
+       MOBILE BOTTOM CONTROLS
+       ========================================================= */
+
+    @media (max-width: 699px) {
+      #search-area {
+        left: 14px;
+        right: 14px;
+      }
+
+      #sinp {
+        font-size: 17px;
+      }
+    }
+
+    @media (max-width: 390px) {
+      #quick-start,
+      #bottom-stop {
+        font-size: 15px;
+        padding: 0 10px;
+      }
+    }
+'''
+          if marker not in s:
+              raise SystemExit('Style closing marker not found')
+          s = s.replace(marker, css + marker, 1)
+
+          p.write_text(s, encoding='utf-8')
+      
+      - name: Commit and remove one-time patch workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f .github/workflows/mobile-controls-once.yml
+          git add index.html .github/workflows/mobile-controls-once.yml
+          git diff --cached --quiet && exit 0
+          git commit -m "Apply mobile bottom controls"
+          git push
