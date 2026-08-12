@@ -94,6 +94,35 @@
       display:none !important;
     }
 
+    .user-location-marker {
+      background:transparent;
+      border:0;
+    }
+
+    .user-location-marker__halo,
+    .user-location-marker__dot {
+      position:absolute;
+      border-radius:50%;
+    }
+
+    .user-location-marker__halo {
+      inset:0;
+      background:rgba(0,122,255,.24);
+      animation:user-location-pulse 1.8s ease-out infinite;
+    }
+
+    .user-location-marker__dot {
+      inset:7px;
+      background:#007aff;
+      border:3px solid #fff;
+      box-shadow:0 1px 5px rgba(0,0,0,.30);
+    }
+
+    @keyframes user-location-pulse {
+      0% { transform:scale(.65); opacity:.85; }
+      100% { transform:scale(1.35); opacity:0; }
+    }
+
     .leaflet-popup-content-wrapper {
       background:rgba(255,255,255,.96) !important;
       color:#111 !important;
@@ -1446,6 +1475,7 @@ L.tileLayer(
 let origin = null;
 let originLabel = '';
 let originMarker = null;
+let userMarker = null;
 
 
 /* =========================================================
@@ -2042,20 +2072,44 @@ function locateUser() {
 
     pos => {
 
-      const lat =
-        pos.coords.latitude;
+      const location = [
+        pos.coords.latitude,
+        pos.coords.longitude
+      ];
 
-      const lng =
-        pos.coords.longitude;
+      const icon =
+        L.divIcon({
+          className:'user-location-marker',
+          html:
+            '<span class="user-location-marker__halo"></span>'+
+            '<span class="user-location-marker__dot"></span>',
+          iconSize:[28,28],
+          iconAnchor:[14,14]
+        });
 
-      setOrigin(
-        lat,
-        lng,
-        'My location'
-      );
+      if(userMarker) {
+
+        userMarker.setLatLng(location);
+
+      } else {
+
+        userMarker =
+          L.marker(
+            location,
+            {
+              icon,
+              title:'Your location',
+              zIndexOffset:1000
+            }
+          ).addTo(map);
+
+        userMarker.bindPopup(
+          '<strong>Your location</strong>'
+        );
+      }
 
       map.setView(
-        [lat,lng],
+        location,
         15
       );
     },
