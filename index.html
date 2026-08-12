@@ -1486,10 +1486,23 @@ function draw() {
 
   if(!origin) return;
 
-  const elapsed =
-    startAt
+  const incidentStartSeconds =
+    Math.max(
+      0,
+      parseFloat(
+        $('e-delay').value
+      ) || 0
+    ) * 60;
+
+  const liveSeconds =
+    going && startAt
       ? (Date.now() - startAt) / 1000
       : 0;
+
+  const elapsed =
+    incidentStartSeconds +
+    elapsedWhenPaused +
+    liveSeconds;
 
   RINGS.forEach(r => {
 
@@ -1632,6 +1645,7 @@ function draw() {
 
 let going = false;
 let startAt = null;
+let elapsedWhenPaused = 0;
 let ticker = null;
 
 function updateQuickStart() {
@@ -1719,6 +1733,12 @@ function stopTimer() {
 
   if(!going) return;
 
+  if(startAt) {
+    elapsedWhenPaused +=
+      (Date.now() - startAt) / 1000;
+  }
+
+  startAt = null;
   going = false;
 
   clearInterval(ticker);
@@ -1760,6 +1780,7 @@ function resetTimer() {
   stopTimer();
 
   startAt = null;
+  elapsedWhenPaused = 0;
 
   Object.values(circles).forEach(
     c => map.removeLayer(c)
@@ -1942,6 +1963,8 @@ async function shareIncident() {
       Number.isFinite(delay)
         ? delay
         : 0;
+
+    draw();
   }
 
 })();
@@ -2512,6 +2535,15 @@ $('sinp').addEventListener(
 
       clearSearch();
     }
+  }
+);
+
+
+/* Keep the selected incident start time in sync with ring distances. */
+$('e-delay').addEventListener(
+  'input',
+  () => {
+    if(origin) draw();
   }
 );
 
