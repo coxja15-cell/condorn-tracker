@@ -6,3271 +6,2715 @@
   <link rel="manifest" href="./manifest.json">
 
   <meta name="viewport"
-        content="width=device-width, initial-scale=1, viewport-fit=cover">
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0,
+                 user-scalable=no, viewport-fit=cover">
 
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="Cordon">
-  <meta name="theme-color" content="#f2f2f7">
+  <meta name="apple-mobile-web-app-title" content="Cordon Tracker">
 
-  <link rel="apple-touch-icon" sizes="180x180" href="./icon-180.png">
+  <meta name="theme-color" content="#ffffff">
 
   <title>Cordon Tracker</title>
 
-  <link
-    rel="stylesheet"
-    href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"
-  >
+  <link rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
-  <script
-    src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js">
-  </script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <style>
     :root {
-      --bg: #eef1f4;
-      --surface: rgba(255, 255, 255, .92);
-      --surface-solid: #fff;
-      --surface-secondary: rgba(242, 242, 247, .94);
-      --text: #111113;
-      --muted: #6e6e73;
-
-      --blue: #007aff;
-      --green: #34c759;
-      --red: #ff3b30;
-      --orange: #ff9500;
-
-      --border: rgba(0, 0, 0, .10);
-      --shadow: 0 4px 18px rgba(0, 0, 0, .15);
-      --shadow-heavy: 0 10px 35px rgba(0, 0, 0, .20);
-
-      --safe-top: env(safe-area-inset-top, 0px);
-      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --bg:#eef1f4;
+      --surface:rgba(255,255,255,.92);
+      --surface-solid:#fff;
+      --surface-secondary:rgba(242,242,247,.94);
+      --text:#111113;
+      --muted:#6e6e73;
+      --blue:#007aff;
+      --green:#34c759;
+      --red:#ff3b30;
+      --orange:#ff9500;
+      --border:rgba(0,0,0,.10);
+      --shadow:0 4px 18px rgba(0,0,0,.15);
+      --shadow-heavy:0 10px 35px rgba(0,0,0,.20);
+      --safe-top:env(safe-area-inset-top,0px);
+      --safe-bottom:env(safe-area-inset-bottom,0px);
     }
 
     * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      -webkit-tap-highlight-color: transparent;
+      box-sizing:border-box;
+      margin:0;
+      padding:0;
+      -webkit-tap-highlight-color:transparent;
     }
 
     html,
     body {
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      background: var(--bg);
-      color: var(--text);
-
-      font-family:
-        -apple-system,
-        BlinkMacSystemFont,
-        "SF Pro Text",
-        "SF Pro Display",
-        system-ui,
-        sans-serif;
-
-      -webkit-font-smoothing: antialiased;
-      overscroll-behavior: none;
+      width:100%;
+      height:100%;
+      overflow:hidden;
+      background:var(--bg);
+      color:var(--text);
+      font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",
+                  "SF Pro Display",system-ui,sans-serif;
+      -webkit-font-smoothing:antialiased;
+      overscroll-behavior:none;
     }
 
     body {
-      position: fixed;
-      inset: 0;
+      position:fixed;
+      inset:0;
     }
 
     button,
     input {
-      font: inherit;
+      font:inherit;
     }
 
     button {
-      border: 0;
-      cursor: pointer;
+      border:0;
+      cursor:pointer;
     }
 
     input {
-      outline: none;
+      outline:none;
     }
 
-    /* =========================================================
-       MAP
-       ========================================================= */
-
     #map {
-      position: fixed;
-      inset: 0;
-      z-index: 0;
+      position:fixed;
+      inset:0;
+      z-index:0;
     }
 
     .leaflet-tile {
-      filter: none !important;
-    }
-
-    .leaflet-control-attribution {
-      background: rgba(255, 255, 255, .70) !important;
-      color: rgba(0, 0, 0, .45) !important;
-      font-size: 8px !important;
-      border-radius: 5px 0 0 0;
-    }
-
-    .leaflet-control-attribution a {
-      color: rgba(0, 0, 0, .55) !important;
+      filter:none !important;
     }
 
     .leaflet-control-zoom {
-      display: none !important;
+      display:none !important;
     }
 
     .leaflet-popup-content-wrapper {
-      background: rgba(255, 255, 255, .96) !important;
-      color: #111 !important;
-      border: 1px solid var(--border) !important;
-      border-radius: 15px !important;
-      box-shadow: var(--shadow-heavy) !important;
+      background:rgba(255,255,255,.96) !important;
+      color:#111 !important;
+      border:1px solid var(--border) !important;
+      border-radius:15px !important;
+      box-shadow:var(--shadow-heavy) !important;
     }
 
     .leaflet-popup-tip {
-      background: rgba(255, 255, 255, .96) !important;
+      background:rgba(255,255,255,.96) !important;
     }
 
     .leaflet-popup-content {
-      margin: 12px 14px !important;
+      margin:12px 14px !important;
     }
+
+    /*
+      RING LABELS
+      Each ring uses its own bearing so labels don't all appear
+      on top of each other at the same point around the circle.
+    */
 
     .ring-label {
-      background: rgba(255, 255, 255, .96) !important;
-      border: 1px solid rgba(0, 0, 0, .10) !important;
-      border-radius: 10px !important;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, .16) !important;
-      color: #111 !important;
-      font-size: 11px !important;
-      font-weight: 800 !important;
-      padding: 4px 8px !important;
-      text-shadow: none !important;
-      white-space: nowrap;
+      background:rgba(255,255,255,.96) !important;
+      border:1px solid rgba(0,0,0,.10) !important;
+      border-radius:10px !important;
+      box-shadow:0 2px 8px rgba(0,0,0,.16) !important;
+      color:#111 !important;
+      font-size:11px !important;
+      font-weight:800 !important;
+      padding:4px 8px !important;
+      text-shadow:none !important;
+      white-space:nowrap;
     }
 
-    /* =========================================================
-       TOP STATUS
-       ========================================================= */
+    .ring-label::after {
+      content:"";
+      position:absolute;
+      width:5px;
+      height:5px;
+      border-radius:50%;
+      background:currentColor;
+      box-shadow:0 0 0 2px rgba(255,255,255,.8);
+    }
+
+    .ring-label::before {
+      display:none !important;
+    }
+
+    /*
+      TOP STATUS
+    */
 
     #top-status {
-      position: fixed;
-      top: calc(var(--safe-top) + 10px);
-      left: 14px;
-      right: 14px;
-      z-index: 300;
-
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-
-      pointer-events: none;
+      position:fixed;
+      top:calc(var(--safe-top) + 10px);
+      left:14px;
+      right:14px;
+      z-index:300;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      pointer-events:none;
     }
 
     #app-title {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-
-      padding: 8px 12px;
-      border-radius: 18px;
-
-      background: rgba(255, 255, 255, .84);
-      border: 1px solid rgba(0, 0, 0, .08);
-      box-shadow: var(--shadow);
-
-      backdrop-filter: blur(22px) saturate(160%);
-      -webkit-backdrop-filter: blur(22px) saturate(160%);
-
-      font-size: 13px;
-      font-weight: 700;
-
-      pointer-events: auto;
+      display:flex;
+      align-items:center;
+      gap:9px;
+      padding:8px 12px;
+      border-radius:15px;
+      background:rgba(255,255,255,.88);
+      border:1px solid rgba(0,0,0,.08);
+      box-shadow:var(--shadow);
+      backdrop-filter:blur(20px);
+      -webkit-backdrop-filter:blur(20px);
     }
 
-    #app-title-dot {
-      width: 9px;
-      height: 9px;
-      border-radius: 50%;
+    #app-title-icon {
+      width:30px;
+      height:30px;
+      border-radius:9px;
+      background:#111;
+      color:#fff;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:16px;
+    }
 
-      background: var(--blue);
-      box-shadow: 0 0 0 3px rgba(0, 122, 255, .13);
+    #app-title-text {
+      display:flex;
+      flex-direction:column;
+      line-height:1.05;
+    }
+
+    #app-title-text strong {
+      font-size:14px;
+      font-weight:800;
+    }
+
+    #app-title-text span {
+      margin-top:3px;
+      font-size:10px;
+      color:var(--muted);
+      font-weight:600;
     }
 
     #incident-state {
-      padding: 8px 12px;
-      border-radius: 18px;
-
-      background: rgba(255, 255, 255, .84);
-      border: 1px solid rgba(0, 0, 0, .08);
-      box-shadow: var(--shadow);
-
-      backdrop-filter: blur(22px) saturate(160%);
-      -webkit-backdrop-filter: blur(22px) saturate(160%);
-
-      color: var(--muted);
-      font-size: 12px;
-      font-weight: 600;
-
-      pointer-events: auto;
+      padding:8px 11px;
+      border-radius:14px;
+      background:rgba(255,255,255,.88);
+      border:1px solid rgba(0,0,0,.08);
+      box-shadow:var(--shadow);
+      backdrop-filter:blur(20px);
+      -webkit-backdrop-filter:blur(20px);
+      color:var(--muted);
+      font-size:11px;
+      font-weight:700;
     }
 
     #incident-state.live {
-      color: var(--red);
+      color:var(--red);
     }
 
-    /* =========================================================
-       MAP CONTROLS
-       ========================================================= */
+    /*
+      MAP CONTROLS
+    */
 
     #map-controls {
-      position: fixed;
-      top: calc(var(--safe-top) + 92px);
-      right: 14px;
-      z-index: 250;
-
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
+      position:fixed;
+      right:14px;
+      top:calc(var(--safe-top) + 68px);
+      z-index:300;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
     }
 
     .map-control {
-      width: 46px;
-      height: 46px;
-      border-radius: 50%;
-
-      background: rgba(255, 255, 255, .90);
-      border: 1px solid rgba(0, 0, 0, .09);
-      box-shadow: var(--shadow);
-
-      backdrop-filter: blur(22px) saturate(160%);
-      -webkit-backdrop-filter: blur(22px) saturate(160%);
-
-      display: flex;
-      align-items: center;
-      justify-content: center;
-
-      color: #202124;
-
-      transition: transform .14s ease;
+      width:44px;
+      height:44px;
+      border-radius:14px;
+      background:rgba(255,255,255,.91);
+      border:1px solid rgba(0,0,0,.08);
+      box-shadow:var(--shadow);
+      backdrop-filter:blur(20px);
+      -webkit-backdrop-filter:blur(20px);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:#111;
     }
 
     .map-control:active {
-      transform: scale(.90);
+      transform:scale(.95);
     }
 
     .map-control svg {
-      width: 21px;
-      height: 21px;
-
-      stroke: currentColor;
-      fill: none;
-      stroke-width: 2;
-      stroke-linecap: round;
-      stroke-linejoin: round;
+      width:20px;
+      height:20px;
+      fill:none;
+      stroke:currentColor;
+      stroke-width:2;
+      stroke-linecap:round;
+      stroke-linejoin:round;
     }
 
-    #fab-share,
-    #fab-loc {
-      color: var(--blue);
-    }
-
-    #fab-settings {
-      color: #333;
-    }
-
-    /* =========================================================
-       QUICK START
-       ========================================================= */
+    /*
+      QUICK START
+    */
 
     #quick-start {
-      position: fixed;
-      left: 50%;
-      transform: translateX(-50%) translateY(12px) scale(.96);
-      bottom: calc(var(--safe-bottom) + 82px);
-
-      z-index: 405;
-
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 9px;
-
-      min-width: 190px;
-      height: 50px;
-      padding: 0 20px;
-
-      border-radius: 25px;
-
-      background: var(--red);
-      color: #fff;
-
-      box-shadow: 0 7px 24px rgba(255, 59, 48, .34);
-
-      font-size: 16px;
-      font-weight: 800;
-
-      opacity: 0;
-      pointer-events: none;
-
-      transition:
-        opacity .2s ease,
-        transform .2s ease,
-        bottom .28s cubic-bezier(.32, .72, 0, 1);
+      position:fixed;
+      left:50%;
+      bottom:calc(var(--safe-bottom) + 82px);
+      transform:translateX(-50%) translateY(15px) scale(.96);
+      z-index:450;
+      min-height:48px;
+      padding:0 18px;
+      border-radius:16px;
+      background:#111;
+      color:#fff;
+      box-shadow:var(--shadow-heavy);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      font-size:14px;
+      font-weight:800;
+      opacity:0;
+      pointer-events:none;
+      transition:opacity .2s ease,
+                  transform .2s ease,
+                  bottom .28s cubic-bezier(.32,.72,0,1);
+      -webkit-tap-highlight-color:transparent;
     }
 
     #quick-start.visible {
-      opacity: 1;
-      pointer-events: auto;
-      transform: translateX(-50%) translateY(0) scale(1);
+      opacity:1;
+      pointer-events:auto;
+      transform:translateX(-50%) translateY(0) scale(1);
     }
 
     #quick-start:active {
-      transform: translateX(-50%) scale(.95);
+      transform:translateX(-50%) scale(.95);
     }
 
     .qs-icon {
-      font-size: 13px;
+      font-size:13px;
     }
 
-    @media (min-width: 700px) {
+    @media (min-width:700px) {
       #quick-start {
-        max-width: 230px;
+        max-width:230px;
       }
     }
 
-    /* =========================================================
-       SEARCH
-       ========================================================= */
+    /*
+      SEARCH
+      Full-width field directly underneath the tracking controls.
+    */
 
     #search-area {
-      position: fixed;
-      left: 14px;
-      right: 14px;
-      bottom: calc(var(--safe-bottom) + 14px);
-
-      z-index: 400;
-
-      pointer-events: none;
-
-      transition:
-        bottom .28s cubic-bezier(.32, .72, 0, 1);
+      position:static;
+      width:100%;
+      margin-top:12px;
+      padding:12px 0 2px;
+      border-top:1px solid rgba(0,0,0,.08);
+      pointer-events:auto;
     }
 
     #search-card {
-      width: 100%;
-      min-height: 56px;
-
-      display: flex;
-      align-items: center;
-      gap: 10px;
-
-      padding: 0 14px;
-      border-radius: 19px;
-
-      background: rgba(255, 255, 255, .91);
-      border: 1px solid rgba(0, 0, 0, .09);
-      box-shadow: var(--shadow-heavy);
-
-      backdrop-filter: blur(26px) saturate(170%);
-      -webkit-backdrop-filter: blur(26px) saturate(170%);
-
-      pointer-events: auto;
+      width:100%;
+      min-height:54px;
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding:0 14px;
+      border-radius:15px;
+      background:#f2f2f7;
+      border:1px solid rgba(0,0,0,.09);
+      box-shadow:none;
+      pointer-events:auto;
     }
 
     #search-icon {
-      flex: 0 0 auto;
-      color: #6e6e73;
-
-      display: flex;
-      align-items: center;
+      flex:0 0 auto;
+      color:#6e6e73;
+      display:flex;
+      align-items:center;
     }
 
     #search-icon svg {
-      width: 19px;
-      height: 19px;
-
-      stroke: currentColor;
-      fill: none;
-      stroke-width: 2;
-      stroke-linecap: round;
+      width:19px;
+      height:19px;
+      stroke:currentColor;
+      fill:none;
+      stroke-width:2;
+      stroke-linecap:round;
     }
 
     #sinp {
-      flex: 1;
-      min-width: 0;
-      height: 54px;
-
-      border: 0;
-      background: transparent;
-
-      color: var(--text);
-      font-size: 17px;
-      font-weight: 400;
-
-      -webkit-appearance: none;
+      flex:1;
+      min-width:0;
+      height:52px;
+      border:0;
+      background:transparent;
+      color:var(--text);
+      font-size:17px;
+      font-weight:400;
+      -webkit-appearance:none;
     }
 
     #sinp::placeholder {
-      color: #6e6e73;
+      color:#6e6e73;
     }
 
     #sclr {
-      display: none;
-
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
-
-      background: #8e8e93;
-      color: #fff;
-
-      align-items: center;
-      justify-content: center;
-
-      font-size: 13px;
-      font-weight: 700;
-
-      flex: 0 0 auto;
+      display:none;
+      width:28px;
+      height:28px;
+      border-radius:50%;
+      background:#8e8e93;
+      color:#fff;
+      align-items:center;
+      justify-content:center;
+      font-size:15px;
+      font-weight:700;
+      flex:0 0 auto;
     }
 
     #sclr.on {
-      display: flex;
+      display:flex;
     }
 
     #sres {
-      display: none;
-
-      margin-bottom: 9px;
-      max-height: min(55vh, 430px);
-
-      overflow-y: auto;
-
-      border-radius: 18px;
-
-      background: rgba(255, 255, 255, .97);
-      border: 1px solid rgba(0, 0, 0, .09);
-      box-shadow: var(--shadow-heavy);
-
-      backdrop-filter: blur(26px);
-      -webkit-backdrop-filter: blur(26px);
-
-      pointer-events: auto;
-
-      -webkit-overflow-scrolling: touch;
+      display:none;
+      margin-top:8px;
+      max-height:min(42vh,360px);
+      overflow-y:auto;
+      border-radius:15px;
+      background:rgba(255,255,255,.98);
+      border:1px solid rgba(0,0,0,.09);
+      box-shadow:var(--shadow);
+      pointer-events:auto;
+      -webkit-overflow-scrolling:touch;
     }
 
     #sres.open {
-      display: block;
+      display:block;
     }
 
     .ri {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-
-      min-height: 62px;
-      padding: 10px 14px;
-
-      border-bottom: 1px solid rgba(0, 0, 0, .07);
+      display:flex;
+      align-items:center;
+      gap:12px;
+      min-height:62px;
+      padding:10px 14px;
+      border-bottom:1px solid rgba(0,0,0,.07);
     }
 
     .ri:last-child {
-      border-bottom: 0;
+      border-bottom:0;
     }
 
     .ri:active {
-      background: #f2f2f7;
+      background:#f2f2f7;
     }
 
     .ri-icon {
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-
-      background: #f2f2f7;
-      color: var(--blue);
-
-      display: flex;
-      align-items: center;
-      justify-content: center;
-
-      flex: 0 0 auto;
+      width:36px;
+      height:36px;
+      border-radius:50%;
+      background:#f2f2f7;
+      color:var(--blue);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      flex:0 0 auto;
     }
 
     .ri-t {
-      min-width: 0;
-      flex: 1;
+      min-width:0;
+      flex:1;
     }
 
     .ri-n {
-      font-size: 15px;
-      font-weight: 600;
-
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      font-size:15px;
+      font-weight:600;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
     }
 
     .ri-s {
-      margin-top: 2px;
-
-      font-size: 12px;
-      color: var(--muted);
-
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      margin-top:2px;
+      font-size:12px;
+      color:var(--muted);
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
     }
 
     .ri-msg {
-      padding: 18px 14px;
-
-      text-align: center;
-
-      font-size: 14px;
-      color: var(--muted);
+      padding:18px 14px;
+      text-align:center;
+      font-size:14px;
+      color:var(--muted);
     }
 
-    /* =========================================================
-       LOCATION LABEL
-       ========================================================= */
+    /*
+      LOCATION LABEL
+    */
 
     #olbl {
-      position: fixed;
-      left: 14px;
-      bottom: calc(var(--safe-bottom) + 84px);
-
-      z-index: 220;
-
-      display: none;
-
-      max-width: calc(100vw - 80px);
-
-      padding: 7px 11px;
-      border-radius: 14px;
-
-      background: rgba(255, 255, 255, .88);
-      border: 1px solid rgba(0, 0, 0, .08);
-      box-shadow: var(--shadow);
-
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-
-      color: #111;
-      font-size: 12px;
-      font-weight: 600;
-
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      position:fixed;
+      left:14px;
+      bottom:calc(var(--safe-bottom) + 84px);
+      z-index:220;
+      display:none;
+      max-width:calc(100vw - 80px);
+      padding:7px 11px;
+      border-radius:14px;
+      background:rgba(255,255,255,.88);
+      border:1px solid rgba(0,0,0,.08);
+      box-shadow:var(--shadow);
+      backdrop-filter:blur(20px);
+      -webkit-backdrop-filter:blur(20px);
+      color:#111;
+      font-size:12px;
+      font-weight:600;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
     }
 
-    /* =========================================================
-       INCIDENT SHEET
-       ========================================================= */
+    /*
+      INCIDENT SHEET
+    */
 
     #panel {
-      position: fixed;
-      left: 0;
-      right: 0;
-      bottom: 0;
-
-      z-index: 500;
-
-      max-height: 88vh;
-
-      padding-bottom: var(--safe-bottom);
-
-      border-radius: 24px 24px 0 0;
-
-      background: rgba(255, 255, 255, .96);
-      border: 1px solid rgba(0, 0, 0, .08);
-
-      box-shadow: 0 -10px 40px rgba(0, 0, 0, .18);
-
-      backdrop-filter: blur(30px) saturate(170%);
-      -webkit-backdrop-filter: blur(30px) saturate(170%);
-
-      transform: translateY(calc(100% - 76px));
-
-      transition:
-        transform .32s cubic-bezier(.32, .72, 0, 1);
+      position:fixed;
+      left:0;
+      right:0;
+      bottom:0;
+      z-index:500;
+      max-height:88vh;
+      padding-bottom:var(--safe-bottom);
+      border-radius:24px 24px 0 0;
+      background:rgba(255,255,255,.96);
+      border:1px solid rgba(0,0,0,.08);
+      box-shadow:0 -10px 40px rgba(0,0,0,.18);
+      backdrop-filter:blur(30px) saturate(170%);
+      -webkit-backdrop-filter:blur(30px) saturate(170%);
+      transform:translateY(calc(100% - 76px));
+      transition:transform .32s cubic-bezier(.32,.72,0,1);
     }
 
     #panel.exp {
-      transform: translateY(0);
+      transform:translateY(0);
     }
 
     #panel.hidden {
-      display: none;
+      display:none;
     }
 
     .phandle {
-      height: 34px;
-
-      display: flex;
-      justify-content: center;
-      align-items: center;
-
-      touch-action: none;
+      height:34px;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      touch-action:none;
     }
 
     .pbar {
-      width: 38px;
-      height: 5px;
-
-      border-radius: 3px;
-      background: rgba(60, 60, 67, .25);
+      width:38px;
+      height:5px;
+      border-radius:3px;
+      background:rgba(60,60,67,.25);
     }
 
     #pcontent {
-      max-height: calc(88vh - 34px);
-      overflow: hidden;
+      max-height:calc(88vh - 34px);
+      overflow:hidden;
     }
 
     #vcol {
-      padding: 0 14px 12px;
+      padding:0 14px calc(14px + var(--safe-bottom));
     }
 
     #vexp {
-      display: none;
-
-      padding: 0 14px 18px;
-
-      max-height: calc(88vh - 34px);
-
-      overflow-y: auto;
-      -webkit-overflow-scrolling: touch;
+      display:none;
+      padding:0 14px 18px;
+      max-height:calc(88vh - 34px);
+      overflow-y:auto;
+      -webkit-overflow-scrolling:touch;
     }
 
-    /* =========================================================
-       COMPACT INCIDENT CARD
-       ========================================================= */
+    @media (max-width:699px) {
+      #panel {
+        padding-bottom:max(var(--safe-bottom), 8px);
+      }
+
+      #vexp {
+        padding-bottom:calc(18px + var(--safe-bottom));
+      }
+    }
+
+    /*
+      COMPACT INCIDENT CARD
+    */
 
     .compact-title {
-      display: flex;
-      align-items: center;
-      gap: 9px;
-
-      margin-bottom: 10px;
+      display:flex;
+      align-items:center;
+      gap:9px;
+      margin-bottom:10px;
     }
 
     #compact-icon {
-      width: 34px;
-      height: 34px;
-
-      border-radius: 50%;
-
-      display: flex;
-      align-items: center;
-      justify-content: center;
-
-      background: rgba(0, 122, 255, .10);
-      color: var(--blue);
-
-      font-size: 17px;
+      width:34px;
+      height:34px;
+      border-radius:10px;
+      background:#f2f2f7;
+      color:#111;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      flex:0 0 auto;
+      font-size:17px;
     }
 
     #compact-name {
-      flex: 1;
-      min-width: 0;
+      min-width:0;
+      flex:1;
+      display:flex;
+      flex-direction:column;
     }
 
     #compact-name strong {
-      display: block;
-
-      font-size: 15px;
-      line-height: 18px;
+      font-size:14px;
+      font-weight:800;
+      line-height:1.1;
     }
 
-    #compact-name span {
-      display: block;
-
-      color: var(--muted);
-      font-size: 12px;
-
-      margin-top: 2px;
-
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+    #compact-location {
+      margin-top:3px;
+      color:var(--muted);
+      font-size:11px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
     }
 
     #compact-status {
-      color: var(--muted);
-      font-size: 11px;
-      font-weight: 700;
+      flex:0 0 auto;
+      color:var(--muted);
+      font-size:11px;
+      font-weight:800;
     }
 
-    .cstats {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-
-      gap: 5px;
-      margin-bottom: 9px;
+    .cstats,
+    .estats {
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:6px;
+      margin-bottom:10px;
     }
 
     .cs {
-      min-width: 0;
-
-      padding: 7px 3px;
-
-      border-radius: 10px;
-
-      background: #f2f2f7;
-      border: 1px solid rgba(0, 0, 0, .05);
-
-      text-align: center;
+      min-width:0;
+      padding:7px 3px;
+      border-radius:10px;
+      background:#f2f2f7;
+      border:1px solid rgba(0,0,0,.05);
+      text-align:center;
     }
 
     .cs.off {
-      opacity: .35;
+      opacity:.35;
     }
 
     .csv {
-      font-size: 12px;
-      line-height: 14px;
-      font-weight: 700;
-
-      font-variant-numeric: tabular-nums;
-
-      white-space: nowrap;
+      font-size:12px;
+      line-height:14px;
+      font-weight:700;
+      font-variant-numeric:tabular-nums;
+      white-space:nowrap;
     }
 
     .csl {
-      margin-top: 2px;
-
-      font-size: 8px;
-      color: var(--muted);
-      font-weight: 700;
-
-      text-transform: uppercase;
-      letter-spacing: .04em;
+      margin-top:2px;
+      font-size:8px;
+      color:var(--muted);
+      font-weight:700;
+      text-transform:uppercase;
+      letter-spacing:.04em;
     }
+
+    /*
+      START / STOP
+      Deliberately separated from utility controls.
+    */
 
     .cbtns,
     .ebtns {
-      display: flex;
-      gap: 8px;
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px;
+    }
+
+    .cutils,
+    .eutils {
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:8px;
+      margin-top:8px;
     }
 
     .cb,
     .eb {
-      height: 48px;
-
-      border-radius: 13px;
-
-      font-size: 15px;
-      font-weight: 700;
-
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 5px;
-
-      transition: transform .12s;
+      min-height:52px;
+      border-radius:13px;
+      font-size:16px;
+      font-weight:700;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:6px;
+      transition:transform .12s;
+      touch-action:manipulation;
     }
 
     .cb:active,
     .eb:active {
-      transform: scale(.96);
+      transform:scale(.96);
     }
 
     .cb:disabled,
     .eb:disabled {
-      opacity: .35;
+      opacity:.35;
     }
 
     .cb-go,
     .eb-go {
-      flex: 1;
-
-      background: var(--green);
-      color: #fff;
+      background:var(--green);
+      color:#fff;
     }
 
     .cb-st,
     .eb-st {
-      flex: 1;
-
-      background: var(--red);
-      color: #fff;
+      background:var(--red);
+      color:#fff;
     }
 
     .cb-sm,
     .eb-sm {
-      flex: 0 0 48px;
-
-      background: #f2f2f7;
-      color: #111;
-
-      border: 1px solid rgba(0, 0, 0, .08);
-
-      font-size: 19px;
+      min-height:48px;
+      background:#f2f2f7;
+      color:#111;
+      border:1px solid rgba(0,0,0,.08);
+      font-size:15px;
     }
 
-    /* =========================================================
-       EXPANDED SHEET
-       ========================================================= */
+    /*
+      EXPANDED SHEET
+    */
 
     .sbar2 {
-      display: flex;
-      align-items: center;
-      gap: 9px;
-
-      min-height: 42px;
-
-      margin-bottom: 12px;
-      padding: 10px 12px;
-
-      border-radius: 12px;
-
-      background: #f2f2f7;
+      display:flex;
+      align-items:center;
+      gap:9px;
+      min-height:42px;
+      margin-bottom:12px;
+      padding:10px 12px;
+      border-radius:12px;
+      background:#f2f2f7;
     }
 
     .sdot {
-      width: 9px;
-      height: 9px;
-
-      border-radius: 50%;
-
-      background: #8e8e93;
-
-      flex: 0 0 auto;
+      width:9px;
+      height:9px;
+      border-radius:50%;
+      background:#8e8e93;
+      flex:0 0 auto;
     }
 
     .sdot.live {
-      background: var(--green);
-
-      box-shadow: 0 0 0 4px rgba(52, 199, 89, .14);
-
-      animation: blink 1.4s infinite;
+      background:var(--green);
+      box-shadow:0 0 0 4px rgba(52,199,89,.14);
+      animation:blink 1.4s infinite;
     }
 
     .sdot.off {
-      background: var(--red);
+      background:var(--red);
     }
 
     .stxt2 {
-      color: #3a3a3c;
-
-      font-size: 13px;
-      font-weight: 600;
+      color:#3a3a3c;
+      font-size:13px;
+      font-weight:600;
     }
 
     @keyframes blink {
-      0%,
-      100% {
-        opacity: 1;
+      0%,100% {
+        opacity:1;
       }
 
       50% {
-        opacity: .35;
+        opacity:.35;
       }
     }
 
     .slbl {
-      margin: 15px 2px 7px;
-
-      color: #6e6e73;
-
-      font-size: 11px;
-      font-weight: 700;
-
-      text-transform: uppercase;
-      letter-spacing: .06em;
+      margin:15px 2px 7px;
+      color:#6e6e73;
+      font-size:11px;
+      font-weight:700;
+      text-transform:uppercase;
+      letter-spacing:.06em;
     }
 
     .type-row {
-      display: flex;
-      gap: 7px;
-
-      overflow-x: auto;
-
-      padding-bottom: 2px;
-
-      scrollbar-width: none;
+      display:flex;
+      gap:7px;
+      overflow-x:auto;
+      padding-bottom:2px;
+      scrollbar-width:none;
     }
 
     .type-row::-webkit-scrollbar {
-      display: none;
+      display:none;
     }
 
     .type-btn {
-      flex: 0 0 auto;
-
-      min-width: 68px;
-
-      padding: 8px 9px;
-
-      border-radius: 11px;
-
-      background: #f2f2f7;
-      border: 1px solid rgba(0, 0, 0, .07);
-
-      color: #3a3a3c;
-
-      text-align: center;
+      min-width:74px;
+      min-height:48px;
+      padding:6px 9px;
+      border-radius:12px;
+      background:#f2f2f7;
+      border:1px solid rgba(0,0,0,.06);
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      gap:2px;
+      flex:0 0 auto;
+      font-size:10px;
+      font-weight:700;
+      color:#3a3a3c;
     }
 
     .type-btn.active {
-      background: rgba(0, 122, 255, .10);
-      border-color: rgba(0, 122, 255, .40);
-
-      color: var(--blue);
+      color:#fff;
+      background:#111;
+      border-color:#111;
     }
 
-    .type-ico {
-      display: block;
-
-      font-size: 17px;
-
-      margin-bottom: 3px;
+    .type-icon {
+      font-size:17px;
+      line-height:17px;
     }
 
-    .type-lbl {
-      font-size: 9px;
-      font-weight: 700;
-
-      text-transform: uppercase;
-    }
-
-    .field,
-    .ring-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-
-      padding: 10px 12px;
-      margin-bottom: 7px;
-
-      border-radius: 12px;
-
-      background: #f2f2f7;
-      border: 1px solid rgba(0, 0, 0, .06);
+    .field {
+      min-height:48px;
+      display:flex;
+      align-items:center;
+      gap:9px;
+      padding:8px 12px;
+      border-radius:12px;
+      background:#f2f2f7;
+      border:1px solid rgba(0,0,0,.06);
     }
 
     .fi {
-      flex: 0 0 auto;
-      font-size: 17px;
+      width:22px;
+      flex:0 0 22px;
+      text-align:center;
+      color:#6e6e73;
+      font-size:17px;
     }
 
     .fn {
-      flex: 1;
-      min-width: 0;
-
-      font-size: 14px;
-      color: #3a3a3c;
+      min-width:0;
+      flex:1;
+      color:#111;
+      font-size:13px;
+      font-weight:600;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
     }
 
-    .finp,
-    .ring-speed {
-      width: 70px;
-      height: 36px;
-
-      padding: 0 8px;
-
-      border: 1px solid rgba(0, 0, 0, .12);
-      border-radius: 9px;
-
-      background: #fff;
-      color: #111;
-
-      text-align: center;
-      font-size: 15px;
-
-      -webkit-appearance: none;
-      -moz-appearance: textfield;
+    .finp {
+      width:70px;
+      height:36px;
+      border:1px solid rgba(0,0,0,.10);
+      border-radius:9px;
+      background:#fff;
+      text-align:center;
+      font-size:15px;
+      font-weight:700;
     }
 
-    .finp::-webkit-inner-spin-button,
-    .finp::-webkit-outer-spin-button,
-    .ring-speed::-webkit-inner-spin-button,
-    .ring-speed::-webkit-outer-spin-button {
-      -webkit-appearance: none;
+    .fu {
+      color:var(--muted);
+      font-size:12px;
+      font-weight:600;
     }
 
-    .fu,
-    .ring-unit {
-      color: var(--muted);
-      font-size: 11px;
-      min-width: 30px;
+    #ring-rows {
+      display:flex;
+      flex-direction:column;
+      gap:7px;
     }
 
-    .ring-row.off {
-      opacity: .42;
+    .ring-row {
+      min-height:48px;
+      display:flex;
+      align-items:center;
+      gap:9px;
+      padding:7px 10px;
+      border-radius:12px;
+      background:#f2f2f7;
+      border:1px solid rgba(0,0,0,.05);
     }
 
-    .ring-dot {
-      width: 10px;
-      height: 10px;
+    .ring-toggle {
+      width:40px;
+      height:32px;
+      border-radius:9px;
+      background:#d1d1d6;
+      color:#fff;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      flex:0 0 auto;
+      font-size:12px;
+      font-weight:800;
+    }
 
-      border-radius: 50%;
-
-      flex: 0 0 auto;
+    .ring-toggle.on {
+      background:#111;
     }
 
     .ring-name {
-      flex: 1;
-
-      font-size: 14px;
-      color: #111;
+      min-width:0;
+      flex:1;
+      display:flex;
+      flex-direction:column;
     }
 
-    .toggle {
-      position: relative;
-
-      width: 46px;
-      height: 28px;
-
-      border-radius: 14px;
-
-      background: #d1d1d6;
-
-      flex: 0 0 auto;
-
-      transition: background .2s;
+    .ring-name strong {
+      font-size:13px;
+      font-weight:700;
     }
 
-    .toggle::after {
-      content: "";
-
-      position: absolute;
-
-      top: 3px;
-      left: 3px;
-
-      width: 22px;
-      height: 22px;
-
-      border-radius: 50%;
-
-      background: #fff;
-
-      box-shadow: 0 1px 4px rgba(0, 0, 0, .20);
-
-      transition:
-        transform .22s cubic-bezier(.34, 1.56, .64, 1);
+    .ring-name span {
+      margin-top:2px;
+      color:var(--muted);
+      font-size:10px;
     }
 
-    .toggle.on {
-      background: var(--green);
+    .ring-value {
+      min-width:60px;
+      text-align:right;
+      font-size:12px;
+      font-weight:800;
+      font-variant-numeric:tabular-nums;
     }
 
-    .toggle.on::after {
-      transform: translateX(18px);
+    /*
+      The expanded utility row is intentionally separate from
+      Start/Stop so the primary actions remain large and obvious.
+    */
+
+    .eutils {
+      margin-bottom:4px;
     }
 
-    .estats {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
+    /*
+      GENERAL TOUCH / SAFARI
+    */
 
-      gap: 5px;
-
-      margin-bottom: 10px;
+    button,
+    input {
+      touch-action:manipulation;
     }
 
-    @media (max-width: 390px) {
-      .map-control {
-        width: 44px;
-        height: 44px;
-      }
+    input[type="number"] {
+      -moz-appearance:textfield;
+    }
 
-      .cstats,
-      .estats {
-        gap: 3px;
-      }
-
-      .csv {
-        font-size: 11px;
-      }
-
-      .csl {
-        font-size: 7px;
-      }
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+      -webkit-appearance:none;
+      margin:0;
     }
   </style>
 </head>
 
 <body>
 
-  <div id="map"></div>
+<div id="map"></div>
 
-  <div id="top-status">
-    <div id="app-title">
-      <span id="app-title-dot"></span>
-      <span>Cordon Tracker</span>
+<div id="top-status">
+  <div id="app-title">
+    <div id="app-title-icon">⌖</div>
+
+    <div id="app-title-text">
+      <strong>Cordon Tracker</strong>
+      <span>Incident management</span>
     </div>
-
-    <div id="incident-state">No incident</div>
   </div>
 
-  <div id="map-controls">
-
-    <button
-      class="map-control"
-      id="fab-settings"
-      onclick="expandPanel()"
-      aria-label="Incident settings"
-      title="Incident settings"
-    >
-      <svg viewBox="0 0 24 24">
-        <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/>
-        <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-1.7 1.7-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V20h-2.4v-.2a1.7 1.7 0 0 0-1.03-1.56 1.7 1.7 0 0 0-1.88.34l-.06.06-1.7-1.7.06-.06A1.7 1.7 0 0 0 8.46 15a1.7 1.7 0 0 0-1.56-1.03H6v-2.4h.9A1.7 1.7 0 0 0 8.46 10a1.7 1.7 0 0 0-.34-1.88l-.06-.06 1.7-1.7.06.06a1.7 1.7 0 0 0 1.88.34A1.7 1.7 0 0 0 12.73 5.2V4h2.4v1.2a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.88-.34l.06-.06 1.7 1.7-.06.06A1.7 1.7 0 0 0 19.4 10c.16.6.71 1.03 1.33 1.03H22v2.4h-1.27A1.7 1.7 0 0 0 19.4 15Z"/>
-      </svg>
-    </button>
-
-    <button
-      class="map-control"
-      id="fab-loc"
-      onclick="getMyLocation()"
-      aria-label="My location"
-      title="My location"
-    >
-      <svg viewBox="0 0 24 24">
-        <circle cx="12" cy="12" r="7"/>
-        <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
-      </svg>
-    </button>
-
-    <button
-      class="map-control"
-      onclick="fitMap()"
-      aria-label="Fit cordon"
-      title="Fit cordon"
-    >
-      <svg viewBox="0 0 24 24">
-        <path d="M8 3H3v5M16 3h5v5M8 21H3v-5M21 16v5h-5"/>
-      </svg>
-    </button>
-
-    <button
-      class="map-control"
-      id="fab-share"
-      onclick="shareIncident()"
-      aria-label="Share incident"
-      title="Share incident"
-    >
-      <svg viewBox="0 0 24 24">
-        <path d="M12 16V3"/>
-        <path d="m7 8 5-5 5 5"/>
-        <path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/>
-      </svg>
-    </button>
-
+  <div id="incident-state">
+    No incident
   </div>
+</div>
 
-  <div id="olbl"></div>
+<div id="map-controls">
 
-  <button
-    id="quick-start"
-    onclick="quickStartIncident()"
-    aria-label="Start incident"
-  >
-    <span class="qs-icon">▶</span>
-    <span>Start Incident</span>
+  <button class="map-control"
+          onclick="locateUser()"
+          aria-label="My location"
+          title="My location">
+    <svg viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="3"></circle>
+      <path d="M12 2v4M12 18v4M2 12h4M18 12h4"></path>
+    </svg>
   </button>
 
-  <div id="search-area">
+  <button class="map-control"
+          onclick="fitMap()"
+          aria-label="Fit cordon"
+          title="Fit cordon">
+    <svg viewBox="0 0 24 24">
+      <path d="M8 3H3v5M16 3h5v5M8 21H3v-5M21 16v5h-5"></path>
+    </svg>
+  </button>
 
-    <div id="sres"></div>
+  <button class="map-control"
+          id="fab-share"
+          onclick="shareIncident()"
+          aria-label="Share incident"
+          title="Share incident">
+    <svg viewBox="0 0 24 24">
+      <path d="M12 16V3"></path>
+      <path d="m7 8 5-5 5 5"></path>
+      <path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"></path>
+    </svg>
+  </button>
 
-    <div id="search-card">
+</div>
 
-      <span id="search-icon">
-        <svg viewBox="0 0 24 24">
-          <circle cx="11" cy="11" r="6.5"></circle>
-          <path d="m16 16 4.5 4.5"></path>
-        </svg>
-      </span>
+<div id="olbl"></div>
 
-      <input
-        id="sinp"
-        type="text"
-        placeholder="Search Location"
-        autocomplete="off"
-        autocorrect="off"
-        autocapitalize="off"
-        spellcheck="false"
-      >
+<button id="quick-start"
+        onclick="quickStartIncident()"
+        aria-label="Start incident">
+  <span class="qs-icon">▶</span>
+  <span>Start Incident</span>
+</button>
 
-      <button
-        id="sclr"
-        onclick="clearSearch()"
-        aria-label="Clear search"
-      >×</button>
+<div id="panel">
 
-    </div>
+  <div class="phandle" id="ptoggle">
+    <div class="pbar"></div>
   </div>
 
-  <div id="panel">
+  <div id="pcontent">
 
-    <div class="phandle" id="ptoggle">
-      <div class="pbar"></div>
-    </div>
+    <div id="vcol">
 
-    <div id="pcontent">
+      <div class="compact-title">
+        <div id="compact-icon">⌖</div>
 
-      <div id="vcol">
-
-        <div class="compact-title">
-
-          <div id="compact-icon">⌖</div>
-
-          <div id="compact-name">
-            <strong id="compact-type">Incident setup</strong>
-            <span id="compact-location">
-              Tap the map or search for a location
-            </span>
-          </div>
-
-          <span id="compact-status">Idle</span>
-
+        <div id="compact-name">
+          <strong id="compact-type">Incident setup</strong>
+          <span id="compact-location">
+            Tap the map or search for a location
+          </span>
         </div>
 
-        <div class="cstats" id="c-stats-row"></div>
-
-        <div class="cbtns">
-          <button
-            class="cb cb-go"
-            id="c-go"
-            onclick="startTimer()"
-          >▶ Start</button>
-
-          <button
-            class="cb cb-st"
-            id="c-stop"
-            onclick="stopTimer()"
-            disabled
-          >■ Stop</button>
-
-          <button
-            class="cb cb-sm"
-            onclick="resetTimer()"
-            aria-label="Reset"
-          >↺</button>
-
-          <button
-            class="cb cb-sm"
-            onclick="expandPanel()"
-            aria-label="Settings"
-          >⚙</button>
-        </div>
-
+        <span id="compact-status">Idle</span>
       </div>
 
-      <div id="vexp">
+      <div class="cstats" id="c-stats-row"></div>
 
-        <div class="sbar2">
-          <div class="sdot" id="sdot"></div>
-          <span class="stxt2" id="stxt">
-            Idle — set an incident location
+      <!-- PRIMARY TRACKING CONTROLS -->
+
+      <div class="cbtns">
+        <button class="cb cb-go"
+                id="c-go"
+                onclick="startTimer()">
+          ▶ Start
+        </button>
+
+        <button class="cb cb-st"
+                id="c-stop"
+                onclick="stopTimer()"
+                disabled>
+          ■ Stop
+        </button>
+      </div>
+
+      <!-- SECONDARY CONTROLS -->
+
+      <div class="cutils">
+        <button class="cb cb-sm"
+                onclick="resetTimer()"
+                aria-label="Reset">
+          ↺ <span>Reset</span>
+        </button>
+
+        <button class="cb cb-sm"
+                onclick="expandPanel()"
+                aria-label="Settings">
+          ⚙ <span>Settings</span>
+        </button>
+      </div>
+
+      <!-- ADDRESS SEARCH -->
+
+      <div id="search-area">
+
+        <div id="search-card">
+
+          <span id="search-icon">
+            <svg viewBox="0 0 24 24">
+              <circle cx="11" cy="11" r="6.5"></circle>
+              <path d="m16 16 4.5 4.5"></path>
+            </svg>
           </span>
-        </div>
 
-        <div class="slbl">Incident Type</div>
+          <input id="sinp"
+                 type="text"
+                 placeholder="Search address or location"
+                 autocomplete="off"
+                 autocorrect="off"
+                 autocapitalize="off"
+                 spellcheck="false">
 
-        <div class="type-row" id="type-row"></div>
-
-        <div class="slbl">Incident Location</div>
-
-        <div class="field">
-          <span class="fi">⌖</span>
-
-          <span
-            class="fn"
-            id="odisplay"
-            style="color: var(--muted); font-size: 13px"
-          >
-            Not set — search above or tap map
-          </span>
-        </div>
-
-        <div class="slbl">Incident Started</div>
-
-        <div class="field">
-
-          <span class="fi">◷</span>
-
-          <span class="fn">Minutes ago</span>
-
-          <input
-            class="finp"
-            type="number"
-            id="e-delay"
-            value="0"
-            min="0"
-            max="999"
-            step="1"
-          >
-
-          <span class="fu">min</span>
+          <button id="sclr"
+                  onclick="clearSearch()"
+                  aria-label="Clear search">
+            ×
+          </button>
 
         </div>
 
-        <div class="slbl">Cordon Rings</div>
-
-        <div id="ring-rows"></div>
-
-        <div class="slbl">Live Data</div>
-
-        <div class="estats" id="e-stats-row"></div>
-
-        <div class="ebtns">
-
-          <button
-            class="eb eb-go"
-            id="e-go"
-            onclick="startTimer()"
-          >▶ Start</button>
-
-          <button
-            class="eb eb-st"
-            id="e-stop"
-            onclick="stopTimer()"
-            disabled
-          >■ Stop</button>
-
-          <button
-            class="eb eb-sm"
-            onclick="resetTimer()"
-            aria-label="Reset"
-          >↺</button>
-
-          <button
-            class="eb eb-sm"
-            onclick="collapsePanel()"
-            aria-label="Collapse"
-          >⌄</button>
-
-        </div>
+        <div id="sres"></div>
 
       </div>
 
     </div>
-  </div>
 
-  <script>
-    /* =========================================================
-       INCIDENT TYPES
-       ========================================================= */
+    <div id="vexp">
 
-    const TYPES = {
-      general: {
-        label: 'General',
-        icon: '🚨',
-        color: '#ff9500'
-      },
+      <div class="sbar2">
+        <div class="sdot" id="sdot"></div>
+        <span class="stxt2" id="stxt">
+          Idle — set an incident location
+        </span>
+      </div>
 
-      police: {
-        label: 'Police',
-        icon: '🚔',
-        color: '#007aff'
-      },
+      <div class="slbl">Incident Type</div>
 
-      fire: {
-        label: 'Fire',
-        icon: '🔥',
-        color: '#ff3b30'
-      },
+      <div class="type-row" id="type-row"></div>
 
-      medical: {
-        label: 'Medical',
-        icon: '🚑',
-        color: '#34c759'
-      },
+      <div class="slbl">Incident Location</div>
 
-      hazmat: {
-        label: 'Hazmat',
-        icon: '☢️',
-        color: '#ffcc00'
-      },
+      <div class="field">
+        <span class="fi">⌖</span>
 
-      sar: {
-        label: 'SAR',
-        icon: '🔍',
-        color: '#ff9500'
-      }
-    };
+        <span class="fn"
+              id="odisplay"
+              style="color:var(--muted);font-size:13px">
+          Not set — search above or tap map
+        </span>
+      </div>
 
-    let currentType = 'general';
+      <div class="slbl">Incident Started</div>
 
+      <div class="field">
+        <span class="fi">◷</span>
 
-    /* =========================================================
-       CORDON RINGS
-       ========================================================= */
-
-    const RINGS = [
-      {
-        id: 'walk',
-        label: 'Walk',
-        speed: 4,
-        color: '#8e8e93',
-        on: false
-      },
-
-      {
-        id: 'run',
-        label: 'Run',
-        speed: 6,
-        color: '#ff6b35',
-        on: true
-      },
-
-      {
-        id: 'cycle',
-        label: 'Cycle',
-        speed: 20,
-        color: '#ff9500',
-        on: false
-      },
-
-      {
-        id: 'vehicle',
-        label: 'Vehicle',
-        speed: 50,
-        color: '#007aff',
-        on: true
-      },
-
-      {
-        id: 'highway',
-        label: 'Highway',
-        speed: 100,
-        color: '#ff3b30',
-        on: false
-      }
-    ];
-
-    let circles = {};
-    let ringLabels = {};
-
-    const RING_BEARINGS = {
-      walk: 0,
-      run: 72,
-      cycle: 144,
-      vehicle: 216,
-      highway: 288
-    };
-
-
-    /* =========================================================
-       NZ SEARCH DATABASE
-       ========================================================= */
-
-    const DB = [
-      ["Kaitaia", "Northland", -35.1134, 173.2653],
-      ["Kerikeri", "Bay of Islands", -35.1831, 173.9480],
-      ["Paihia", "Bay of Islands", -35.2794, 174.0892],
-      ["Whangarei", "Northland", -35.7275, 174.3236],
-      ["Whangarei Hospital", "Northland", -35.7264, 174.3148],
-      ["Dargaville", "Northland", -35.9368, 173.8867],
-      ["Warkworth", "Auckland", -36.4010, 174.6594],
-      ["Orewa", "Auckland", -36.5985, 174.6936],
-      ["Silverdale", "Auckland", -36.6258, 174.6717],
-      ["Whangaparaoa", "Auckland", -36.6349, 174.7255],
-      ["Auckland CBD", "Auckland", -36.8485, 174.7633],
-      ["Sky Tower", "Auckland CBD", -36.8484, 174.7622],
-      ["Auckland City Hospital", "Auckland", -36.8621, 174.7694],
-      ["Auckland Police HQ", "Auckland", -36.8627, 174.7622],
-      ["Starship Hospital", "Auckland", -36.8626, 174.7699],
-      ["Middlemore Hospital", "South Auckland", -36.9599, 174.8450],
-      ["North Shore Hospital", "Auckland", -36.8004, 174.7572],
-      ["Waitakere Hospital", "West Auckland", -36.8767, 174.6432],
-      ["Auckland Airport", "Manukau", -37.0082, 174.7850],
-      ["Manukau", "South Auckland", -36.9934, 174.8794],
-      ["Papakura", "South Auckland", -37.0645, 174.9440],
-      ["Pukekohe", "Franklin", -37.2001, 174.9019],
-      ["Botany", "Auckland", -36.9317, 174.9142],
-      ["Howick", "Auckland", -36.8985, 174.9344],
-      ["Pakuranga", "Auckland", -36.8954, 174.9020],
-      ["Takapuna", "North Shore", -36.7878, 174.7717],
-      ["Devonport", "North Shore", -36.8287, 174.7960],
-      ["Albany", "North Shore", -36.7278, 174.7011],
-      ["Henderson", "West Auckland", -36.8769, 174.6362],
-      ["Kumeu", "Auckland", -36.7768, 174.5651],
-      ["Ponsonby", "Auckland", -36.8542, 174.7438],
-      ["Newmarket", "Auckland", -36.8692, 174.7769],
-      ["Mt Eden", "Auckland", -36.8790, 174.7637],
-      ["Remuera", "Auckland", -36.8800, 174.7944],
-      ["Parnell", "Auckland", -36.8571, 174.7799],
-      ["New Lynn", "West Auckland", -36.9068, 174.6874],
-      ["Glen Eden", "West Auckland", -36.9304, 174.6564],
-      ["Onehunga", "Auckland", -36.9238, 174.7898],
-      ["Mangere", "Auckland", -36.9779, 174.7925],
-      ["Manurewa", "Auckland", -37.0185, 174.8985],
-      ["Waiheke Island", "Auckland", -36.8010, 175.0930],
-      ["Thames", "Waikato", -37.1398, 175.5394],
-      ["Coromandel Town", "Waikato", -36.7598, 175.4926],
-      ["Whitianga", "Waikato", -36.8326, 175.6981],
-      ["Hamilton CBD", "Waikato", -37.7870, 175.2793],
-      ["Waikato Hospital", "Hamilton", -37.7866, 175.2875],
-      ["Cambridge", "Waikato", -37.8839, 175.4660],
-      ["Te Awamutu", "Waikato", -38.0090, 175.3285],
-      ["Huntly", "Waikato", -37.5571, 175.1567],
-      ["Matamata", "Waikato", -37.8085, 175.7723],
-      ["Taupo CBD", "Waikato", -38.6843, 176.0702],
-      ["Taupo Hospital", "Taupo", -38.6873, 176.0735],
-      ["Tokoroa", "Waikato", -38.2267, 175.8695],
-      ["Te Kuiti", "Waikato", -38.3388, 175.1590],
-      ["Tauranga CBD", "Bay of Plenty", -37.6870, 176.1654],
-      ["Tauranga Hospital", "Tauranga", -37.6935, 176.1659],
-      ["Mt Maunganui", "Bay of Plenty", -37.6380, 176.1876],
-      ["Papamoa", "Bay of Plenty", -37.7124, 176.2736],
-      ["Rotorua CBD", "Bay of Plenty", -38.1368, 176.2497],
-      ["Rotorua Hospital", "Rotorua", -38.1393, 176.2414],
-      ["Whakatane", "Bay of Plenty", -37.9530, 176.9903],
-      ["Whakatane Hospital", "Whakatane", -37.9561, 176.9847],
-      ["Te Puke", "Bay of Plenty", -37.7820, 176.3292],
-      ["Gisborne CBD", "Gisborne", -38.6623, 178.0176],
-      ["Gisborne Hospital", "Gisborne", -38.6604, 178.0208],
-      ["Napier CBD", "Hawkes Bay", -39.4902, 176.9178],
-      ["Napier Hospital", "Hawkes Bay", -39.4982, 176.9119],
-      ["Hastings", "Hawkes Bay", -39.6383, 176.8399],
-      ["Havelock North", "Hawkes Bay", -39.6630, 176.8810],
-      ["Wairoa", "Hawkes Bay", -39.0369, 177.3602],
-      ["New Plymouth CBD", "Taranaki", -39.0556, 174.0752],
-      ["Taranaki Base Hospital", "New Plymouth", -39.0584, 174.0760],
-      ["Hawera", "Taranaki", -39.5931, 174.2840],
-      ["Palmerston North", "Manawatu", -40.3523, 175.6082],
-      ["Palmerston North Hospital", "Palmerston North", -40.3564, 175.6149],
-      ["Whanganui", "Manawatu-Whanganui", -39.9310, 175.0540],
-      ["Whanganui Hospital", "Whanganui", -39.9380, 175.0580],
-      ["Levin", "Horowhenua", -40.6218, 175.2766],
-      ["Feilding", "Manawatu", -40.2294, 175.5656],
-      ["Ohakune", "Manawatu-Whanganui", -39.4153, 175.4079],
-      ["Taumarunui", "Manawatu-Whanganui", -38.8757, 175.2606],
-      ["Wellington CBD", "Wellington", -41.2865, 174.7762],
-      ["Wellington Hospital", "Wellington", -41.2978, 174.7760],
-      ["Wellington Police HQ", "Wellington", -41.2932, 174.7802],
-      ["Wellington Airport", "Wellington", -41.3272, 174.8051],
-      ["Lower Hutt", "Wellington", -41.2127, 174.9087],
-      ["Hutt Hospital", "Lower Hutt", -41.2149, 174.9186],
-      ["Upper Hutt", "Wellington", -41.1244, 175.0708],
-      ["Porirua", "Wellington", -41.1335, 174.8441],
-      ["Paraparaumu", "Kapiti", -40.9098, 175.0178],
-      ["Masterton", "Wairarapa", -40.9524, 175.6576],
-      ["Nelson CBD", "Nelson", -41.2706, 173.2840],
-      ["Nelson Hospital", "Nelson", -41.2795, 173.2759],
-      ["Richmond", "Nelson", -41.3387, 173.1734],
-      ["Blenheim", "Marlborough", -41.5134, 173.9612],
-      ["Picton", "Marlborough", -41.2946, 174.0015],
-      ["Kaikoura", "Canterbury", -42.4002, 173.6822],
-      ["Westport", "West Coast", -41.7555, 171.6022],
-      ["Greymouth", "West Coast", -42.4534, 171.2111],
-      ["Hokitika", "West Coast", -42.7163, 170.9736],
-      ["Christchurch CBD", "Canterbury", -43.5321, 172.6362],
-      ["Christchurch Hospital", "Christchurch", -43.5341, 172.6367],
-      ["Christchurch Police HQ", "Christchurch", -43.5300, 172.6390],
-      ["Christchurch Airport", "Canterbury", -43.4894, 172.5322],
-      ["Riccarton", "Christchurch", -43.5340, 172.5981],
-      ["Rangiora", "Canterbury", -43.3042, 172.5945],
-      ["Rolleston", "Canterbury", -43.5910, 172.3784],
-      ["Kaiapoi", "Canterbury", -43.3822, 172.6569],
-      ["Ashburton", "Canterbury", -43.9004, 171.7289],
-      ["Ashburton Hospital", "Ashburton", -43.9034, 171.7261],
-      ["Timaru CBD", "South Canterbury", -44.3960, 171.2553],
-      ["Timaru Hospital", "Timaru", -44.3998, 171.2575],
-      ["Twizel", "Mackenzie", -44.2585, 170.1001],
-      ["Tekapo", "Mackenzie", -44.0037, 170.4773],
-      ["Queenstown", "Otago", -45.0312, 168.6626],
-      ["Queenstown Hospital", "Queenstown", -45.0176, 168.6701],
-      ["Wanaka", "Otago", -44.7027, 169.1321],
-      ["Arrowtown", "Otago", -44.9416, 168.8243],
-      ["Alexandra", "Otago", -45.2476, 169.3812],
-      ["Cromwell", "Otago", -45.0434, 169.1952],
-      ["Oamaru", "Otago", -45.0966, 170.9714],
-      ["Dunedin CBD", "Otago", -45.8788, 170.5028],
-      ["Dunedin Hospital", "Otago", -45.8785, 170.5124],
-      ["Dunedin Airport", "Otago", -45.9281, 170.1983],
-      ["Mosgiel", "Otago", -45.8755, 170.3464],
-      ["Balclutha", "Otago", -46.2378, 169.7473],
-      ["Invercargill CBD", "Southland", -46.4132, 168.3538],
-      ["Southland Hospital", "Invercargill", -46.4152, 168.3640],
-      ["Gore", "Southland", -46.1006, 168.9413],
-      ["Te Anau", "Southland", -45.4143, 167.7193],
-      ["Milford Sound", "Southland", -44.6717, 167.9253]
-    ];
-
-
-    /* =========================================================
-       MAP
-       ========================================================= */
-
-    const map = L.map('map', {
-      zoomControl: false,
-      tap: true,
-      attributionControl: true
-    }).setView([-36.8485, 174.7633], 13);
-
-    L.tileLayer(
-      'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-      {
-        attribution:
-          '© <a href="https://openstreetmap.org">OpenStreetMap</a>',
-        maxZoom: 19
-      }
-    ).addTo(map);
-
-
-    /* =========================================================
-       STATE / HELPERS
-       ========================================================= */
-
-    let origin = null;
-    let originLabel = '';
-
-    let oMark = null;
-    let uMark = null;
-
-    let startAt = null;
-    let going = false;
-    let ticker = null;
-
-    let panelExp = false;
-    let searchTimer = null;
-
-    const KM = 1000 / 3600;
-
-    const $ = id => document.getElementById(id);
-
-    const fmt = m => {
-      if (m >= 1000) {
-        return (m / 1000).toFixed(2) + ' km';
-      }
-
-      return Math.round(m) + ' m';
-    };
-
-
-    function escapeHTML(value) {
-      return String(value || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-    }
-
-
-    /* =========================================================
-       INCIDENT TYPES
-       ========================================================= */
-
-    const typeRow = $('type-row');
-
-    Object.entries(TYPES).forEach(([key, t]) => {
-
-      const btn = document.createElement('button');
-
-      btn.className =
-        'type-btn' +
-        (key === currentType ? ' active' : '');
-
-      btn.dataset.type = key;
-
-      btn.innerHTML =
-        `<span class="type-ico">${t.icon}</span>` +
-        `<span class="type-lbl">${t.label}</span>`;
-
-      btn.addEventListener('click', () => {
-        setIncidentType(key);
-      });
-
-      typeRow.appendChild(btn);
-    });
-
-
-    /* =========================================================
-       RING ROWS
-       ========================================================= */
-
-    const ringRowsEl = $('ring-rows');
-
-    RINGS.forEach(r => {
-
-      const div = document.createElement('div');
-
-      div.className =
-        'ring-row' +
-        (r.on ? '' : ' off');
-
-      div.id = 'rrow-' + r.id;
-
-      div.innerHTML = `
-        <span
-          class="ring-dot"
-          style="background:${r.color}"
-        ></span>
-
-        <span class="ring-name">
-          ${r.label}
+        <span class="fn">
+          Minutes ago
         </span>
 
-        <input
-          class="ring-speed"
-          type="number"
-          id="rspd-${r.id}"
-          value="${r.speed}"
-          min="1"
-          max="300"
-          step="0.5"
-        >
+        <input class="finp"
+               type="number"
+               id="e-delay"
+               value="0"
+               min="0"
+               max="999"
+               step="1">
 
-        <span class="ring-unit">km/h</span>
+        <span class="fu">min</span>
+      </div>
 
-        <button
-          class="toggle ${r.on ? 'on' : ''}"
-          id="rtog-${r.id}"
-          aria-label="Toggle ${r.label}"
-        ></button>
-      `;
+      <div class="slbl">Cordon Rings</div>
 
-      ringRowsEl.appendChild(div);
+      <div id="ring-rows"></div>
 
-      $('rspd-' + r.id).addEventListener('input', () => {
-        if (origin) {
-          draw();
+      <div class="slbl">Live Data</div>
+
+      <div class="estats"
+           id="e-stats-row"></div>
+
+      <!-- EXPANDED PRIMARY CONTROLS -->
+
+      <div class="ebtns">
+
+        <button class="eb eb-go"
+                id="e-go"
+                onclick="startTimer()">
+          ▶ Start
+        </button>
+
+        <button class="eb eb-st"
+                id="e-stop"
+                onclick="stopTimer()"
+                disabled>
+          ■ Stop
+        </button>
+
+      </div>
+
+      <!-- EXPANDED SECONDARY CONTROLS -->
+
+      <div class="eutils">
+
+        <button class="eb eb-sm"
+                onclick="resetTimer()"
+                aria-label="Reset">
+          ↺ <span>Reset</span>
+        </button>
+
+        <button class="eb eb-sm"
+                onclick="collapsePanel()"
+                aria-label="Collapse">
+          ⌄ <span>Close</span>
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+
+/* =========================================================
+   INCIDENT TYPES
+   ========================================================= */
+
+const TYPES = {
+  general:{
+    label:'General',
+    icon:'🚨',
+    color:'#ff9500'
+  },
+
+  police:{
+    label:'Police',
+    icon:'🚔',
+    color:'#007aff'
+  },
+
+  fire:{
+    label:'Fire',
+    icon:'🔥',
+    color:'#ff3b30'
+  },
+
+  medical:{
+    label:'Medical',
+    icon:'🚑',
+    color:'#34c759'
+  },
+
+  hazmat:{
+    label:'Hazmat',
+    icon:'☢️',
+    color:'#ffcc00'
+  },
+
+  sar:{
+    label:'SAR',
+    icon:'🔍',
+    color:'#ff9500'
+  }
+};
+
+let currentType = 'general';
+
+
+/* =========================================================
+   CORDON RINGS
+   ========================================================= */
+
+const RINGS = [
+  {
+    id:'walk',
+    label:'Walk',
+    speed:4,
+    color:'#8e8e93',
+    on:false
+  },
+
+  {
+    id:'run',
+    label:'Run',
+    speed:6,
+    color:'#ff6b35',
+    on:true
+  },
+
+  {
+    id:'cycle',
+    label:'Cycle',
+    speed:20,
+    color:'#ff9500',
+    on:false
+  },
+
+  {
+    id:'vehicle',
+    label:'Vehicle',
+    speed:50,
+    color:'#007aff',
+    on:true
+  },
+
+  {
+    id:'highway',
+    label:'Highway',
+    speed:100,
+    color:'#ff3b30',
+    on:false
+  }
+];
+
+let circles = {};
+let ringLabels = {};
+
+/*
+  Give every ring a different bearing so labels don't stack.
+*/
+
+const RING_BEARINGS = {
+  walk:0,
+  run:72,
+  cycle:144,
+  vehicle:216,
+  highway:288
+};
+
+
+/* =========================================================
+   NZ SEARCH DATABASE
+   ========================================================= */
+
+const DB = [
+  ["Kaitaia","Northland",-35.1134,173.2653],
+  ["Kerikeri","Bay of Islands",-35.1831,173.9480],
+  ["Paihia","Bay of Islands",-35.2794,174.0892],
+  ["Whangarei","Northland",-35.7251,174.3237],
+  ["Dargaville","Northland",-35.9350,173.8739],
+  ["Warkworth","Auckland",-36.3978,174.6630],
+  ["Orewa","Auckland",-36.5833,174.6917],
+  ["Albany","Auckland",-36.7245,174.6964],
+  ["Takapuna","Auckland",-36.7870,174.7720],
+  ["Auckland CBD","Auckland",-36.8485,174.7633],
+  ["Newmarket","Auckland",-36.8699,174.7760],
+  ["Mt Eden","Auckland",-36.8770,174.7645],
+  ["Onehunga","Auckland",-36.9246,174.7861],
+  ["Manukau","Auckland",-37.0100,174.8840],
+  ["Papakura","Auckland",-37.0650,174.9430],
+  ["Pukekohe","Auckland",-37.2030,174.9000],
+  ["Hamilton","Waikato",-37.7870,175.2793],
+  ["Cambridge","Waikato",-37.8897,175.4700],
+  ["Te Awamutu","Waikato",-38.0103,175.3230],
+  ["Taupo","Waikato",-38.6857,176.0702],
+  ["Rotorua","Bay of Plenty",-38.1368,176.2497],
+  ["Tauranga","Bay of Plenty",-37.6878,176.1651],
+  ["Whakatane","Bay of Plenty",-37.9534,176.9907],
+  ["Gisborne","Gisborne",-38.6623,178.0176],
+  ["Napier","Hawke's Bay",-39.4928,176.9120],
+  ["Hastings","Hawke's Bay",-39.6381,176.8497],
+  ["New Plymouth","Taranaki",-39.0573,174.0752],
+  ["Palmerston North","Manawatu",-40.3523,175.6082],
+  ["Whanganui","Manawatu",-39.9301,175.0479],
+  ["Masterton","Wairarapa",-40.9597,175.6575],
+  ["Wellington","Wellington",-41.2866,174.7756],
+  ["Nelson","Nelson",-41.2706,173.2840],
+  ["Blenheim","Marlborough",-41.5134,173.9612],
+  ["Westport","West Coast",-41.7526,171.6037],
+  ["Greymouth","West Coast",-42.4500,171.2100],
+  ["Christchurch","Canterbury",-43.5321,172.6362],
+  ["Timaru","Canterbury",-44.3960,171.2530],
+  ["Oamaru","Otago",-45.0975,170.9700],
+  ["Dunedin","Otago",-45.8788,170.5028],
+  ["Queenstown","Otago",-45.0312,168.6626],
+  ["Wanaka","Otago",-44.6980,169.1320],
+  ["Invercargill","Southland",-46.4132,168.3538]
+];
+
+
+/* =========================================================
+   HELPERS
+   ========================================================= */
+
+const $ = id => document.getElementById(id);
+
+function fmt(m) {
+  if(m < 1000) {
+    return Math.round(m)+' m';
+  }
+
+  return (m/1000).toFixed(2)+' km';
+}
+
+
+/*
+  Destination point.
+
+  Calculates a point a given distance and bearing from a
+  latitude/longitude origin.
+*/
+
+function destinationPoint(origin, distance, bearing) {
+
+  const R = 6371000;
+
+  const lat1 = origin.lat * Math.PI / 180;
+  const lon1 = origin.lng * Math.PI / 180;
+  const brng = bearing * Math.PI / 180;
+
+  const lat2 = Math.asin(
+    Math.sin(lat1) * Math.cos(distance/R) +
+    Math.cos(lat1) *
+    Math.sin(distance/R) *
+    Math.cos(brng)
+  );
+
+  const lon2 =
+    lon1 +
+    Math.atan2(
+      Math.sin(brng) * Math.sin(distance/R) * Math.cos(lat1),
+      Math.cos(distance/R) -
+      Math.sin(lat1) * Math.sin(lat2)
+    );
+
+  return {
+    lat:lat2 * 180 / Math.PI,
+    lng:lon2 * 180 / Math.PI
+  };
+}
+
+
+/* =========================================================
+   MAP
+   ========================================================= */
+
+const map = L.map('map',{
+  zoomControl:false,
+  attributionControl:true,
+  doubleClickZoom:false
+}).setView(
+  [-36.8485,174.7633],
+  12
+);
+
+L.tileLayer(
+  'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+  {
+    maxZoom:19,
+    attribution:'© OpenStreetMap'
+  }
+).addTo(map);
+
+let origin = null;
+let originLabel = '';
+let originMarker = null;
+
+
+/* =========================================================
+   DRAW RINGS
+   ========================================================= */
+
+function draw() {
+
+  if(!origin) return;
+
+  const elapsed =
+    startAt
+      ? (Date.now() - startAt) / 1000
+      : 0;
+
+  RINGS.forEach(r => {
+
+    if(!r.on) {
+
+      if(circles[r.id]) {
+        map.removeLayer(circles[r.id]);
+        delete circles[r.id];
+      }
+
+      if(ringLabels[r.id]) {
+        map.removeLayer(ringLabels[r.id]);
+        delete ringLabels[r.id];
+      }
+
+      ['c','e'].forEach(p => {
+        const el = $(p+'-'+r.id);
+
+        if(el) {
+          el.querySelector('.csv').textContent = '0 m';
         }
       });
 
-      $('rtog-' + r.id).addEventListener('click', () => {
-        toggleRing(r.id);
-      });
-    });
-
-
-    /* =========================================================
-       STATS
-       ========================================================= */
-
-    function buildStats(containerId) {
-
-      const el = $(containerId);
-
-      el.innerHTML = '';
-
-      RINGS.forEach(r => {
-
-        const d = document.createElement('div');
-
-        d.className =
-          'cs' +
-          (r.on ? '' : ' off');
-
-        d.id =
-          (containerId === 'c-stats-row' ? 'c' : 'e') +
-          '-' +
-          r.id;
-
-        d.innerHTML =
-          `<div class="csv" style="color:${r.color}">0 m</div>` +
-          `<div class="csl">${r.label}</div>`;
-
-        el.appendChild(d);
-      });
+      return;
     }
 
-    buildStats('c-stats-row');
-    buildStats('e-stats-row');
+    /*
+      Distance = speed × elapsed time.
+      Speed is km/h.
+    */
 
+    const radius =
+      r.speed * 1000 / 3600 * elapsed;
 
-    /* =========================================================
-       INCIDENT TYPE
-       ========================================================= */
+    if(radius <= 0) {
 
-    function setIncidentType(key) {
+      ['c','e'].forEach(p => {
+        const el = $(p+'-'+r.id);
 
-      if (!TYPES[key]) {
-        return;
-      }
-
-      currentType = key;
-
-      const t = TYPES[key];
-
-      document
-        .querySelectorAll('.type-btn')
-        .forEach(b => {
-          b.classList.toggle(
-            'active',
-            b.dataset.type === key
-          );
-        });
-
-      $('compact-icon').textContent = t.icon;
-
-      $('compact-icon').style.color = t.color;
-
-      $('compact-icon').style.background =
-        t.color + '18';
-
-      $('compact-type').textContent =
-        t.label + ' incident';
-
-      $('app-title-dot').style.background =
-        t.color;
-
-      if (origin && oMark) {
-
-        map.removeLayer(oMark);
-
-        oMark = L.marker(origin, {
-          icon: makePin(
-            t.color,
-            t.color + '55',
-            20
-          )
-        }).addTo(map);
-
-        oMark.bindPopup(popupHTML());
-      }
-    }
-
-
-    /* =========================================================
-       RING TOGGLE
-       ========================================================= */
-
-    function toggleRing(id) {
-
-      const r = RINGS.find(x => x.id === id);
-
-      if (!r) {
-        return;
-      }
-
-      r.on = !r.on;
-
-      $('rtog-' + id).className =
-        'toggle ' +
-        (r.on ? 'on' : '');
-
-      $('rrow-' + id).className =
-        'ring-row' +
-        (r.on ? '' : ' off');
-
-      ['c', 'e'].forEach(p => {
-
-        const el = $(p + '-' + id);
-
-        if (el) {
-          el.className =
-            'cs' +
-            (r.on ? '' : ' off');
+        if(el) {
+          el.querySelector('.csv').textContent = '0 m';
         }
       });
 
-      if (!r.on && circles[id]) {
-
-        map.removeLayer(circles[id]);
-
-        delete circles[id];
-      }
-
-      if (!r.on && ringLabels[id]) {
-
-        map.removeLayer(ringLabels[id]);
-
-        delete ringLabels[id];
-      }
-
-      if (origin) {
-        draw();
-      }
+      return;
     }
 
+    if(circles[r.id]) {
 
-    /* =========================================================
-       SEARCH
-       ========================================================= */
+      circles[r.id].setLatLng(origin);
+      circles[r.id].setRadius(radius);
 
-    $('sinp').addEventListener('input', function () {
+    } else {
 
-      const q = this.value.trim();
+      circles[r.id] =
+        L.circle(
+          origin,
+          {
+            radius,
+            color:r.color,
+            fillColor:r.color,
+            fillOpacity:.08,
+            weight:2,
+            dashArray:'6 4'
+          }
+        ).addTo(map);
+    }
 
-      $('sclr').classList.toggle(
-        'on',
-        q.length > 0
+    /*
+      Labels sit at different points around the rings instead
+      of all appearing at 3 o'clock.
+    */
+
+    const labelPoint =
+      destinationPoint(
+        origin,
+        Math.max(radius,35),
+        RING_BEARINGS[r.id] || 0
       );
 
-      clearTimeout(searchTimer);
+    if(ringLabels[r.id]) {
 
-      if (q.length < 2) {
+      ringLabels[r.id].setLatLng(labelPoint);
 
-        closeSR();
+      ringLabels[r.id].setIcon(
+        L.divIcon({
+          className:'ring-label',
+          html:
+            `<span style="color:${r.color}">
+              ${r.label}: ${fmt(radius)}
+            </span>`,
+          iconSize:null,
+          iconAnchor:[0,0]
+        })
+      );
 
-        return;
+    } else {
+
+      ringLabels[r.id] =
+        L.marker(
+          labelPoint,
+          {
+            interactive:false,
+            keyboard:false,
+            zIndexOffset:100
+          }
+        ).addTo(map);
+
+      ringLabels[r.id].setIcon(
+        L.divIcon({
+          className:'ring-label',
+          html:
+            `<span style="color:${r.color}">
+              ${r.label}: ${fmt(radius)}
+            </span>`,
+          iconSize:null,
+          iconAnchor:[0,0]
+        })
+      );
+    }
+
+    const fv = fmt(radius);
+
+    ['c','e'].forEach(p => {
+
+      const el = $(p+'-'+r.id);
+
+      if(el) {
+        el.querySelector('.csv').textContent = fv;
       }
-
-      const lq = q.toLowerCase();
-
-      const local = DB
-        .filter(r =>
-          r[0].toLowerCase().includes(lq) ||
-          r[1].toLowerCase().includes(lq)
-        )
-        .slice(0, 6);
-
-      renderSR(local, true);
-
-      searchTimer = setTimeout(() => {
-        nominatimSearch(q);
-      }, 450);
     });
 
+  });
+}
 
-    async function nominatimSearch(q) {
 
-      try {
+/* =========================================================
+   TIMER
+   ========================================================= */
 
-        const r = await fetch(
-          'https://nominatim.openstreetmap.org/search?' +
-          'format=json&limit=6&q=' +
-          encodeURIComponent(q),
-          {
-            headers: {
-              Accept: 'application/json'
-            }
-          }
-        );
+let going = false;
+let startAt = null;
+let ticker = null;
 
-        if (!r.ok) {
-          throw new Error('Search failed');
-        }
+function updateQuickStart() {
 
-        const data = await r.json();
+  const btn = $('quick-start');
 
-        if (!data || !data.length) {
-          return;
-        }
+  if(!btn) return;
 
-        const hits = data.map(it => {
+  if(origin && !going) {
+    btn.classList.add('visible');
+  } else {
+    btn.classList.remove('visible');
+  }
+}
 
-          const p =
-            it.display_name.split(', ');
 
-          return [
-            p.slice(0, 2).join(', '),
-            p.slice(2, 5).join(', '),
-            parseFloat(it.lat),
-            parseFloat(it.lon)
-          ];
-        });
+function quickStartIncident() {
 
-        renderSR(hits, false);
+  if(!origin) {
 
-      } catch (e) {
+    expandPanel();
 
+    $('sinp').focus();
+
+    return;
+  }
+
+  startTimer();
+}
+
+
+function startTimer() {
+
+  if(!origin) {
+
+    expandPanel();
+
+    alert('Set an incident location first.');
+
+    return;
+  }
+
+  if(going) return;
+
+  going = true;
+
+  startAt = Date.now();
+
+  ticker = setInterval(
+    draw,
+    300
+  );
+
+  draw();
+
+  ['c-go','e-go'].forEach(
+    id => $(id).disabled = true
+  );
+
+  ['c-stop','e-stop'].forEach(
+    id => $(id).disabled = false
+  );
+
+  $('sdot').className = 'sdot live';
+
+  $('stxt').textContent =
+    'Cordon expanding…';
+
+  $('compact-status').textContent =
+    'LIVE';
+
+  $('compact-status').style.color =
+    'var(--red)';
+
+  $('incident-state').textContent =
+    'Live incident';
+
+  $('incident-state').classList.add('live');
+
+  updateQuickStart();
+}
+
+
+function stopTimer() {
+
+  if(!going) return;
+
+  going = false;
+
+  clearInterval(ticker);
+
+  ticker = null;
+
+  ['c-go','e-go'].forEach(
+    id => $(id).disabled = false
+  );
+
+  ['c-stop','e-stop'].forEach(
+    id => $(id).disabled = true
+  );
+
+  $('sdot').className = 'sdot off';
+
+  $('stxt').textContent =
+    'Paused';
+
+  $('compact-status').textContent =
+    'Paused';
+
+  $('compact-status').style.color =
+    'var(--muted)';
+
+  $('incident-state').textContent =
+    'Incident paused';
+
+  $('incident-state').classList.remove('live');
+
+  draw();
+
+  updateQuickStart();
+}
+
+
+function resetTimer() {
+
+  stopTimer();
+
+  startAt = null;
+
+  Object.values(circles).forEach(
+    c => map.removeLayer(c)
+  );
+
+  circles = {};
+
+  Object.values(ringLabels).forEach(
+    l => map.removeLayer(l)
+  );
+
+  ringLabels = {};
+
+  $('sdot').className = 'sdot';
+
+  $('stxt').textContent =
+    origin
+      ? 'Reset — ready'
+      : 'Idle — set an incident location';
+
+  $('compact-status').textContent =
+    origin
+      ? 'Ready'
+      : 'Idle';
+
+  $('compact-status').style.color =
+    'var(--muted)';
+
+  $('incident-state').textContent =
+    origin
+      ? 'Incident ready'
+      : 'No incident';
+
+  RINGS.forEach(r => {
+
+    ['c','e'].forEach(p => {
+
+      const el = $(p+'-'+r.id);
+
+      if(el) {
+        el.querySelector('.csv').textContent =
+          '0 m';
+      }
+    });
+  });
+
+  updateQuickStart();
+}
+
+
+/* =========================================================
+   SHARE
+   ========================================================= */
+
+async function shareIncident() {
+
+  const t = TYPES[currentType];
+
+  let text =
+    t.icon +
+    ' ' +
+    t.label +
+    ' Incident — Cordon Tracker';
+
+  let url =
+    window.location.href.split('?')[0];
+
+  if(origin) {
+
+    url +=
+      `?lat=${origin.lat.toFixed(6)}`+
+      `&lon=${origin.lng.toFixed(6)}`+
+      `&type=${currentType}`+
+      `&delay=${$('e-delay').value}`;
+
+    text +=
+      '\n📍 '+
+      (originLabel || 'Unknown location');
+
+    const active =
+      RINGS.filter(
+        r => r.on
+      );
+
+    if(active.length) {
+
+      text +=
+        '\n🔴 Active rings: '+
+        active
+          .map(r => r.label)
+          .join(', ');
+    }
+  }
+
+  if(navigator.share) {
+
+    try {
+
+      await navigator.share({
+        title:'Cordon Tracker',
+        text,
+        url
+      });
+
+    } catch(e) {
+
+      if(e.name !== 'AbortError') {
         console.warn(
-          'Address search unavailable:',
+          'Share failed:',
           e
         );
       }
     }
 
+  } else {
 
-    function renderSR(hits, loading) {
+    try {
 
-      const box = $('sres');
+      await navigator.clipboard.writeText(url);
 
-      box.innerHTML = '';
+      alert('Link copied!');
 
-      if (!hits.length && !loading) {
+    } catch(e) {
 
-        box.innerHTML =
-          '<div class="ri-msg">' +
-          'No results — tap the map to set the incident location' +
-          '</div>';
-
-        box.classList.add('open');
-
-        return;
-      }
-
-      if (loading && !hits.length) {
-
-        box.innerHTML =
-          '<div class="ri-msg">Searching…</div>';
-
-        box.classList.add('open');
-
-        return;
-      }
-
-      hits.forEach(r => {
-
-        const d =
-          document.createElement('div');
-
-        d.className = 'ri';
-
-        d.innerHTML = `
-          <div class="ri-icon">⌖</div>
-
-          <div class="ri-t">
-            <div class="ri-n">
-              ${escapeHTML(r[0])}
-            </div>
-
-            <div class="ri-s">
-              ${escapeHTML(r[1] || '')}
-            </div>
-          </div>
-        `;
-
-        const pick = () => {
-
-          $('sinp').value = r[0];
-
-          $('sclr').classList.add('on');
-
-          closeSR();
-
-          const ll =
-            L.latLng(r[2], r[3]);
-
-          map.setView(ll, 15);
-
-          setOrigin(
-            ll,
-            r[0] +
-            (r[1] ? ', ' + r[1] : '')
-          );
-        };
-
-        d.addEventListener('click', pick);
-
-        d.addEventListener('touchend', e => {
-
-          e.preventDefault();
-
-          pick();
-        });
-
-        box.appendChild(d);
-      });
-
-      box.classList.add('open');
+      alert(url);
     }
+  }
+}
 
 
-    function closeSR() {
-      $('sres').classList.remove('open');
-    }
+/* =========================================================
+   RESTORE SHARED INCIDENT
+   ========================================================= */
 
+(() => {
 
-    function clearSearch() {
-
-      $('sinp').value = '';
-
-      $('sclr').classList.remove('on');
-
-      closeSR();
-    }
-
-
-    document.addEventListener(
-      'touchstart',
-      e => {
-
-        if (!$('search-area').contains(e.target)) {
-          closeSR();
-        }
-      },
-      {
-        passive: true
-      }
+  const p =
+    new URLSearchParams(
+      window.location.search
     );
 
+  const lat =
+    parseFloat(
+      p.get('lat')
+    );
 
-    /* =========================================================
-       MAP MARKERS
-       ========================================================= */
+  const lon =
+    parseFloat(
+      p.get('lon')
+    );
 
-    function makePin(col, glow, sz = 20) {
+  const type =
+    p.get('type');
 
-      return L.divIcon({
-        html: `
-          <div style="
-            width:${sz}px;
-            height:${sz}px;
-            background:${col};
-            border:3px solid #fff;
-            border-radius:50%;
-            box-shadow:
-              0 0 0 4px ${glow},
-              0 2px 7px rgba(0,0,0,.28);
-          "></div>
-        `,
+  const delay =
+    parseInt(
+      p.get('delay') || '0',
+      10
+    );
 
-        className: '',
+  if(
+    Number.isFinite(lat) &&
+    Number.isFinite(lon)
+  ) {
 
-        iconSize: [sz, sz],
+    setOrigin(
+      lat,
+      lon,
+      'Shared incident'
+    );
 
-        iconAnchor: [
-          sz / 2,
-          sz / 2
-        ]
-      });
+    if(type && TYPES[type]) {
+
+      currentType = type;
+
+      renderTypes();
     }
 
+    $('e-delay').value =
+      Number.isFinite(delay)
+        ? delay
+        : 0;
+  }
 
-    function makePulse(col) {
-
-      return L.divIcon({
-
-        html: `
-          <div
-            style="
-              position:relative;
-              width:28px;
-              height:28px;
-            "
-          >
-
-            <div
-              style="
-                position:absolute;
-                inset:0;
-                border-radius:50%;
-                background:${col};
-                opacity:.20;
-                animation:cordon-rip 2s infinite;
-              "
-            ></div>
-
-            <div
-              style="
-                position:absolute;
-                left:7px;
-                top:7px;
-                width:14px;
-                height:14px;
-                border-radius:50%;
-                background:#fff;
-                border:4px solid ${col};
-                box-shadow:0 1px 4px rgba(0,0,0,.25);
-              "
-            ></div>
-
-          </div>
-
-          <style>
-            @keyframes cordon-rip {
-              0% {
-                transform: scale(.8);
-                opacity: .4;
-              }
-
-              100% {
-                transform: scale(2.8);
-                opacity: 0;
-              }
-            }
-          </style>
-        `,
-
-        className: '',
-
-        iconSize: [28, 28],
-
-        iconAnchor: [14, 14]
-      });
-    }
+})();
 
 
-    function popupHTML() {
+/* =========================================================
+   LOCATION
+   ========================================================= */
 
-      const t = TYPES[currentType];
+function setOrigin(
+  lat,
+  lng,
+  label
+) {
 
-      return `
-        <div
-          style="
-            font-family:
-              -apple-system,
-              BlinkMacSystemFont,
-              sans-serif;
-          "
-        >
+  origin = {
+    lat,
+    lng
+  };
 
-          <div
-            style="
-              font-size:13px;
-              font-weight:700;
-              color:${t.color};
-            "
-          >
-            ${t.icon}
-            ${t.label.toUpperCase()}
-            INCIDENT
-          </div>
+  originLabel =
+    label || 'Selected location';
 
-          <div
-            style="
-              font-size:12px;
-              color:#6e6e73;
-              margin-top:3px;
-            "
-          >
-            ${escapeHTML(
-              originLabel ||
-              $('odisplay').textContent ||
-              ''
-            )}
-          </div>
+  if(originMarker) {
+    map.removeLayer(originMarker);
+  }
 
-        </div>
-      `;
-    }
-
-
-    /* =========================================================
-       ORIGIN
-       ========================================================= */
-
-    async function setOrigin(ll, label) {
-
-      origin = ll;
-
-      originLabel = label || '';
-
-      if (
-        !label ||
-        /^-?\d+\.\d+/.test(label)
-      ) {
-
-        try {
-
-          const r = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?` +
-            `format=json&lat=${ll.lat}&lon=${ll.lng}`,
-            {
-              headers: {
-                Accept: 'application/json'
-              }
-            }
-          );
-
-          if (!r.ok) {
-            throw new Error('Reverse geocoding failed');
-          }
-
-          const d = await r.json();
-
-          if (d.display_name) {
-
-            const parts =
-              d.display_name.split(', ');
-
-            label =
-              parts.slice(0, 4).join(', ');
-
-            originLabel = label;
-          }
-
-        } catch (e) {
-
-          console.warn(
-            'Reverse geocoding unavailable:',
-            e
-          );
-        }
+  originMarker =
+    L.marker(
+      origin,
+      {
+        draggable:true
       }
-
-      const t = TYPES[currentType];
-
-      if (oMark) {
-        map.removeLayer(oMark);
-      }
-
-      oMark = L.marker(ll, {
-        icon: makePin(
-          t.color,
-          t.color + '55',
-          20
-        )
-      }).addTo(map);
-
-      oMark.bindPopup(popupHTML());
-
-      $('odisplay').textContent =
-        label || '';
-
-      $('odisplay').style.color =
-        '#111';
-
-      $('compact-location').textContent =
-        label ||
-        'Incident location set';
-
-      $('olbl').textContent =
-        t.icon +
-        ' ' +
-        (label || '').substring(0, 60);
-
-      $('olbl').style.display = 'block';
-
-      $('incident-state').textContent =
-        'Incident ready';
-
-      $('incident-state')
-        .classList.remove('live');
-
-      draw();
-
-      reposition();
-
-      $('stxt').textContent =
-        'Origin set — ready to track';
-
-      updateQuickStart();
-    }
-
-
-    /* =========================================================
-       DRAW CORDON RINGS
-       ========================================================= */
-
-    function destinationPoint(
-      originLL,
-      distanceMeters,
-      bearingDeg
-    ) {
-
-      const R = 6371000;
-
-      const brng =
-        bearingDeg * Math.PI / 180;
-
-      const lat1 =
-        originLL.lat * Math.PI / 180;
-
-      const lon1 =
-        originLL.lng * Math.PI / 180;
-
-      const d =
-        distanceMeters / R;
-
-      const lat2 =
-        Math.asin(
-          Math.sin(lat1) * Math.cos(d) +
-          Math.cos(lat1) *
-          Math.sin(d) *
-          Math.cos(brng)
-        );
-
-      const lon2 =
-        lon1 +
-        Math.atan2(
-          Math.sin(brng) *
-          Math.sin(d) *
-          Math.cos(lat1),
-
-          Math.cos(d) -
-          Math.sin(lat1) *
-          Math.sin(lat2)
-        );
-
-      return L.latLng(
-        lat2 * 180 / Math.PI,
-        lon2 * 180 / Math.PI
-      );
-    }
-
-
-    function draw() {
-
-      if (!origin) {
-        return;
-      }
-
-      const delay =
-        (parseFloat(
-          $('e-delay').value
-        ) || 0) * 60;
-
-      const liveS =
-        going && startAt
-          ? (Date.now() - startAt) / 1000
-          : 0;
-
-      const total =
-        liveS + delay;
-
-      RINGS.forEach(r => {
-
-        const speed =
-          (
-            parseFloat(
-              $('rspd-' + r.id).value
-            ) || r.speed
-          ) * KM;
-
-        const radius =
-          speed * total;
-
-        if (!r.on) {
-
-          if (circles[r.id]) {
-
-            map.removeLayer(
-              circles[r.id]
-            );
-
-            delete circles[r.id];
-          }
-
-          if (ringLabels[r.id]) {
-
-            map.removeLayer(
-              ringLabels[r.id]
-            );
-
-            delete ringLabels[r.id];
-          }
-
-          ['c', 'e'].forEach(p => {
-
-            const el =
-              $(p + '-' + r.id);
-
-            if (el) {
-
-              el.querySelector(
-                '.csv'
-              ).textContent = '0 m';
-            }
-          });
-
-          return;
-        }
-
-        if (circles[r.id]) {
-
-          circles[r.id].setLatLng(origin);
-
-          circles[r.id].setRadius(radius);
-
-        } else {
-
-          circles[r.id] =
-            L.circle(origin, {
-              radius: radius,
-              color: r.color,
-              fillColor: r.color,
-              fillOpacity: .08,
-              weight: 2,
-              dashArray: '6 4'
-            }).addTo(map);
-        }
-
-        const labelPoint =
-          destinationPoint(
-            origin,
-            Math.max(radius, 35),
-            RING_BEARINGS[r.id] || 0
-          );
-
-        const labelIcon =
-          L.divIcon({
-            className: 'ring-label',
-
-            html:
-              `<span style="color:${r.color}">` +
-              `${r.label}: ${fmt(radius)}` +
-              `</span>`,
-
-            iconSize: null,
-
-            iconAnchor: [0, 0]
-          });
-
-        if (ringLabels[r.id]) {
-
-          ringLabels[r.id]
-            .setLatLng(labelPoint);
-
-          ringLabels[r.id]
-            .setIcon(labelIcon);
-
-        } else {
-
-          ringLabels[r.id] =
-            L.marker(labelPoint, {
-              interactive: false,
-              keyboard: false,
-              zIndexOffset: 100,
-              icon: labelIcon
-            }).addTo(map);
-        }
-
-        const fv = fmt(radius);
-
-        ['c', 'e'].forEach(p => {
-
-          const el =
-            $(p + '-' + r.id);
-
-          if (el) {
-
-            el.querySelector(
-              '.csv'
-            ).textContent = fv;
-          }
-        });
-      });
-    }
-
-
-    /* =========================================================
-       TIMER
-       ========================================================= */
-
-    function updateQuickStart() {
-
-      const btn = $('quick-start');
-
-      if (!btn) {
-        return;
-      }
-
-      if (origin && !going) {
-        btn.classList.add('visible');
-      } else {
-        btn.classList.remove('visible');
-      }
-    }
-
-
-    function quickStartIncident() {
-
-      if (!origin) {
-
-        expandPanel();
-
-        $('sinp').focus();
-
-        return;
-      }
-
-      startTimer();
-    }
-
-
-    function startTimer() {
-
-      if (!origin) {
-
-        expandPanel();
-
-        alert(
-          'Set an incident location first.'
-        );
-
-        return;
-      }
-
-      if (going) {
-        return;
-      }
-
-      going = true;
-
-      startAt = Date.now();
-
-      ticker =
-        setInterval(draw, 300);
-
-      draw();
-
-      ['c-go', 'e-go'].forEach(id => {
-        $(id).disabled = true;
-      });
-
-      ['c-stop', 'e-stop'].forEach(id => {
-        $(id).disabled = false;
-      });
-
-      $('sdot').className =
-        'sdot live';
-
-      $('stxt').textContent =
-        'Cordon expanding…';
-
-      $('compact-status').textContent =
-        'LIVE';
-
-      $('compact-status').style.color =
-        'var(--red)';
-
-      $('incident-state').textContent =
-        'Live incident';
-
-      $('incident-state')
-        .classList.add('live');
-
-      updateQuickStart();
-    }
-
-
-    function stopTimer() {
-
-      if (!going) {
-        return;
-      }
-
-      going = false;
-
-      clearInterval(ticker);
-
-      ticker = null;
-
-      ['c-go', 'e-go'].forEach(id => {
-        $(id).disabled = false;
-      });
-
-      ['c-stop', 'e-stop'].forEach(id => {
-        $(id).disabled = true;
-      });
-
-      $('sdot').className =
-        'sdot off';
-
-      $('stxt').textContent =
-        'Paused';
-
-      $('compact-status').textContent =
-        'Paused';
-
-      $('compact-status').style.color =
-        'var(--muted)';
-
-      $('incident-state').textContent =
-        'Incident paused';
-
-      $('incident-state')
-        .classList.remove('live');
-
-      draw();
-
-      updateQuickStart();
-    }
-
-
-    function resetTimer() {
-
-      stopTimer();
-
-      startAt = null;
-
-      Object.values(circles)
-        .forEach(c => {
-          map.removeLayer(c);
-        });
-
-      Object.values(ringLabels)
-        .forEach(m => {
-          map.removeLayer(m);
-        });
-
-      circles = {};
-      ringLabels = {};
-
-      $('sdot').className =
-        'sdot';
-
-      $('stxt').textContent =
-        origin
-          ? 'Reset — ready'
-          : 'Idle — set an incident location';
-
-      $('compact-status').textContent =
-        origin
-          ? 'Ready'
-          : 'Idle';
-
-      $('compact-status').style.color =
-        'var(--muted)';
-
-      $('incident-state').textContent =
-        origin
-          ? 'Incident ready'
-          : 'No incident';
-
-      RINGS.forEach(r => {
-
-        ['c', 'e'].forEach(p => {
-
-          const el =
-            $(p + '-' + r.id);
-
-          if (el) {
-
-            el.querySelector(
-              '.csv'
-            ).textContent = '0 m';
-          }
-        });
-      });
-
-      updateQuickStart();
-    }
-
-
-    /* =========================================================
-       SHARE
-       ========================================================= */
-
-    async function shareIncident() {
-
-      const t =
-        TYPES[currentType];
-
-      let text =
-        t.icon +
-        ' ' +
-        t.label +
-        ' Incident — Cordon Tracker';
-
-      let url =
-        window.location.href.split('?')[0];
-
-      if (origin) {
-
-        url +=
-          `?lat=${origin.lat.toFixed(6)}` +
-          `&lon=${origin.lng.toFixed(6)}` +
-          `&type=${currentType}` +
-          `&delay=${encodeURIComponent(
-            $('e-delay').value
-          )}`;
-
-        text +=
-          '\n📍 ' +
-          (
-            originLabel ||
-            'Unknown location'
-          );
-
-        const active =
-          RINGS.filter(r => r.on);
-
-        if (active.length) {
-
-          text +=
-            '\n🔴 Active rings: ' +
-            active
-              .map(r => r.label)
-              .join(', ');
-        }
-      }
-
-      if (navigator.share) {
-
-        try {
-
-          await navigator.share({
-            title: 'Cordon Tracker',
-            text,
-            url
-          });
-
-        } catch (e) {
-
-          if (e.name !== 'AbortError') {
-
-            console.warn(
-              'Share failed:',
-              e
-            );
-          }
-        }
-
-      } else {
-
-        try {
-
-          await navigator.clipboard.writeText(url);
-
-          alert('Link copied!');
-
-        } catch (e) {
-
-          alert(url);
-        }
-      }
-    }
-
-
-    /* =========================================================
-       RESTORE SHARED INCIDENT
-       ========================================================= */
-
-    (() => {
+    ).addTo(map);
+
+  originMarker.on(
+    'dragend',
+    e => {
 
       const p =
-        new URLSearchParams(
-          window.location.search
-        );
+        e.target.getLatLng();
+
+      origin = {
+        lat:p.lat,
+        lng:p.lng
+      };
+
+      originLabel =
+        'Selected location';
+
+      updateLocationUI();
+
+      draw();
+    }
+  );
+
+  map.setView(
+    origin,
+    Math.max(
+      map.getZoom(),
+      13
+    )
+  );
+
+  updateLocationUI();
+
+  draw();
+
+  updateQuickStart();
+}
+
+
+function updateLocationUI() {
+
+  $('compact-location').textContent =
+    originLabel ||
+    'Tap the map or search for a location';
+
+  $('odisplay').textContent =
+    originLabel ||
+    'Not set — search above or tap map';
+
+  $('odisplay').style.color =
+    origin
+      ? 'var(--text)'
+      : 'var(--muted)';
+
+  $('incident-state').textContent =
+    going
+      ? 'Live incident'
+      : 'Incident ready';
+}
+
+
+/* =========================================================
+   MAP CLICK
+   ========================================================= */
+
+map.on(
+  'click',
+  e => {
+
+    setOrigin(
+      e.latlng.lat,
+      e.latlng.lng,
+      'Map location'
+    );
+  }
+);
+
+
+/* =========================================================
+   USER LOCATION
+   ========================================================= */
+
+function locateUser() {
+
+  if(!navigator.geolocation) {
+
+    alert(
+      'Location services are not available.'
+    );
+
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+
+    pos => {
 
       const lat =
-        parseFloat(p.get('lat'));
+        pos.coords.latitude;
 
-      const lon =
-        parseFloat(p.get('lon'));
-
-      if (
-        Number.isFinite(lat) &&
-        Number.isFinite(lon)
-      ) {
-
-        const ll =
-          L.latLng(lat, lon);
-
-        const sharedType =
-          p.get('type');
-
-        if (
-          sharedType &&
-          TYPES[sharedType]
-        ) {
-
-          setIncidentType(
-            sharedType
-          );
-        }
-
-        if (p.get('delay')) {
-
-          $('e-delay').value =
-            p.get('delay');
-        }
-
-        map.setView(ll, 14);
-
-        setOrigin(
-          ll,
-          'Shared incident location'
-        );
-      }
-    })();
-
-
-    /* =========================================================
-       MY LOCATION
-       ========================================================= */
-
-    function getMyLocation() {
-
-      const btn =
-        $('fab-loc');
-
-      btn.style.opacity = '.55';
-
-      if (!navigator.geolocation) {
-
-        alert(
-          'Geolocation is not supported on this device.'
-        );
-
-        btn.style.opacity = '1';
-
-        return;
-      }
-
-      navigator.geolocation.getCurrentPosition(
-
-        pos => {
-
-          btn.style.opacity = '1';
-
-          const ll =
-            L.latLng(
-              pos.coords.latitude,
-              pos.coords.longitude
-            );
-
-          if (uMark) {
-
-            map.removeLayer(uMark);
-          }
-
-          uMark =
-            L.marker(ll, {
-              icon: makePulse('#007aff')
-            }).addTo(map);
-
-          uMark.bindPopup(
-            '<div ' +
-            'style="color:#007aff;' +
-            'font-weight:700;' +
-            'font-size:13px">' +
-            '● Your Location' +
-            '</div>'
-          );
-
-          map.setView(ll, 15);
-        },
-
-        err => {
-
-          btn.style.opacity = '1';
-
-          alert(
-            'Location unavailable.\n\n' +
-            'Check Settings → Privacy & Security → ' +
-            'Location Services.'
-          );
-        },
-
-        {
-          enableHighAccuracy: true,
-          timeout: 12000,
-          maximumAge: 0
-        }
-      );
-    }
-
-
-    /* =========================================================
-       MAP CLICK
-       ========================================================= */
-
-    map.on('click', e => {
-
-      if (going) {
-        return;
-      }
-
-      closeSR();
+      const lng =
+        pos.coords.longitude;
 
       setOrigin(
-        e.latlng,
-        null
+        lat,
+        lng,
+        'My location'
       );
 
-      $('sinp').value = '';
+      map.setView(
+        [lat,lng],
+        15
+      );
+    },
 
-      $('sclr').classList.remove('on');
-    });
+    err => {
+
+      console.warn(
+        'Location error:',
+        err
+      );
+
+      alert(
+        'Unable to get your location.'
+      );
+    },
+
+    {
+      enableHighAccuracy:true,
+      timeout:10000,
+      maximumAge:30000
+    }
+  );
+}
 
 
-    /* =========================================================
-       FIT MAP
-       ========================================================= */
+/* =========================================================
+   FIT MAP
+   ========================================================= */
 
-    function fitMap() {
+function fitMap() {
 
-      const active =
-        Object.values(circles);
+  if(!origin) return;
 
-      if (active.length) {
+  const layers =
+    Object.values(circles);
 
-        map.fitBounds(
-          L.featureGroup(active)
-            .getBounds()
-            .pad(.12)
+  if(!layers.length) {
+
+    map.setView(
+      origin,
+      14
+    );
+
+    return;
+  }
+
+  const group =
+    L.featureGroup(
+      layers
+    );
+
+  map.fitBounds(
+    group.getBounds().pad(.15)
+  );
+}
+
+
+/* =========================================================
+   INCIDENT TYPES UI
+   ========================================================= */
+
+function renderTypes() {
+
+  const row =
+    $('type-row');
+
+  if(!row) return;
+
+  row.innerHTML = '';
+
+  Object.entries(TYPES).forEach(
+    ([id,t]) => {
+
+      const btn =
+        document.createElement(
+          'button'
         );
 
-      } else if (origin) {
-
-        map.setView(
-          origin,
-          14
+      btn.className =
+        'type-btn'+
+        (
+          id === currentType
+            ? ' active'
+            : ''
         );
 
-      } else {
+      btn.innerHTML =
+        `<span class="type-icon">
+          ${t.icon}
+        </span>
+        <span>${t.label}</span>`;
 
-        map.setView(
-          [-36.8485, 174.7633],
-          13
-        );
-      }
+      btn.onclick = () => {
+
+        currentType = id;
+
+        renderTypes();
+
+        $('compact-type').textContent =
+          t.label;
+
+        $('compact-icon').textContent =
+          t.icon;
+      };
+
+      row.appendChild(btn);
     }
+  );
+
+  const t =
+    TYPES[currentType];
+
+  $('compact-type').textContent =
+    t.label;
+
+  $('compact-icon').textContent =
+    t.icon;
+}
 
 
-    /* =========================================================
-       PANEL
-       ========================================================= */
+/* =========================================================
+   RING UI
+   ========================================================= */
 
-    const PANEL =
-      $('panel');
+function renderRings() {
 
-    const PTOG =
-      $('ptoggle');
+  const row =
+    $('ring-rows');
 
-    function expandPanel() {
+  if(!row) return;
 
-      panelExp = true;
+  row.innerHTML = '';
 
-      PANEL.classList.add('exp');
+  RINGS.forEach(r => {
 
-      $('vcol').style.display =
-        'none';
+    const item =
+      document.createElement('div');
 
-      $('vexp').style.display =
-        'block';
+    item.className =
+      'ring-row';
 
-      reposition();
-    }
+    item.innerHTML =
 
+      `<button class="ring-toggle ${
+        r.on ? 'on' : ''
+      }"
+        aria-label="Toggle ${r.label}">
+        ${r.on ? 'ON' : 'OFF'}
+      </button>
 
-    function collapsePanel() {
+      <div class="ring-name">
+        <strong>${r.label}</strong>
+        <span>${r.speed} km/h</span>
+      </div>
 
-      panelExp = false;
+      <div class="ring-value">
+        <span class="csv">0 m</span>
+      </div>`;
 
-      PANEL.classList.remove('exp');
+    const toggle =
+      item.querySelector(
+        '.ring-toggle'
+      );
 
-      $('vexp').style.display =
-        'none';
+    toggle.onclick = () => {
 
-      $('vcol').style.display =
-        'block';
+      r.on = !r.on;
 
-      reposition();
-    }
+      toggle.classList.toggle(
+        'on',
+        r.on
+      );
 
+      toggle.textContent =
+        r.on
+          ? 'ON'
+          : 'OFF';
 
-    PTOG.addEventListener(
-      'click',
-      () => {
+      draw();
+    };
 
-        if (panelExp) {
-          collapsePanel();
-        } else {
-          expandPanel();
-        }
-      }
-    );
-
-
-    /* =========================================================
-       SHEET SWIPE
-       ========================================================= */
-
-    let dragStartY = 0;
-    let dragCurY = 0;
-    let dragging = false;
-
-    PTOG.addEventListener(
-      'touchstart',
-      e => {
-
-        dragging = true;
-
-        dragStartY =
-          dragCurY =
-            e.touches[0].clientY;
-
-        PANEL.style.transition =
-          'none';
-      },
-      {
-        passive: true
-      }
-    );
+    row.appendChild(item);
+  });
+}
 
 
-    PTOG.addEventListener(
-      'touchmove',
-      e => {
+/* =========================================================
+   STATS
+   ========================================================= */
 
-        if (!dragging) {
-          return;
-        }
+function renderStats() {
 
-        dragCurY =
-          e.touches[0].clientY;
+  ['c-stats-row','e-stats-row']
+    .forEach(id => {
 
-        const dy =
-          dragCurY -
-          dragStartY;
+      const el = $(id);
 
-        if (panelExp && dy < 0) {
-          return;
-        }
+      if(!el) return;
 
-        if (!panelExp && dy > 0) {
-          return;
-        }
+      el.innerHTML = '';
 
-        PANEL.style.transform =
-          panelExp
-            ? `translateY(${Math.max(0, dy)}px)`
-            : `translateY(
-                calc(
-                  100% - 76px +
-                  ${Math.min(0, dy)}px
-                )
-              )`;
-      },
-      {
-        passive: true
-      }
-    );
+      RINGS.forEach(r => {
 
+        const stat =
+          document.createElement(
+            'div'
+          );
 
-    PTOG.addEventListener(
-      'touchend',
-      () => {
+        stat.className =
+          'cs'+
+          (
+            r.on
+              ? ''
+              : ' off'
+          );
 
-        if (!dragging) {
-          return;
-        }
+        stat.id =
+          `${id[0]}-${r.id}`;
 
-        dragging = false;
+        stat.innerHTML =
+          `<div class="csv">0 m</div>
+           <div class="csl">${r.label}</div>`;
 
-        PANEL.style.transition = '';
-
-        const dy =
-          dragCurY -
-          dragStartY;
-
-        if (
-          !panelExp &&
-          dy < -25
-        ) {
-
-          expandPanel();
-
-        } else if (
-          panelExp &&
-          dy > 25
-        ) {
-
-          collapsePanel();
-
-        } else {
-
-          PANEL.style.transform = '';
-        }
-      }
-    );
-
-
-    /* =========================================================
-       POSITIONING
-       ========================================================= */
-
-    function reposition() {
-
-      requestAnimationFrame(() => {
-
-        const panelVisible =
-          panelExp || origin;
-
-        const panelOffset =
-          panelVisible
-            ? 88
-            : 0;
-
-        $('search-area').style.bottom =
-          `calc(
-            var(--safe-bottom) +
-            ${14 + panelOffset}px
-          )`;
-
-        $('olbl').style.bottom =
-          `calc(
-            var(--safe-bottom) +
-            ${84 + panelOffset}px
-          )`;
-
-        $('quick-start').style.bottom =
-          `calc(
-            var(--safe-bottom) +
-            ${82 + panelOffset}px
-          )`;
+        el.appendChild(stat);
       });
-    }
+    });
+}
 
 
-    window.addEventListener(
-      'resize',
-      reposition
-    );
+/* =========================================================
+   SEARCH
+   ========================================================= */
+
+function openSR() {
+
+  $('sres').classList.add(
+    'open'
+  );
+}
 
 
-    window.addEventListener(
-      'orientationchange',
-      () => {
+function closeSR() {
 
-        setTimeout(
-          reposition,
-          250
+  $('sres').classList.remove(
+    'open'
+  );
+}
+
+
+function clearSearch() {
+
+  $('sinp').value = '';
+
+  $('sclr').classList.remove(
+    'on'
+  );
+
+  $('sres').innerHTML = '';
+
+  closeSR();
+
+  $('sinp').focus();
+}
+
+
+function searchLocations(value) {
+
+  const q =
+    value
+      .trim()
+      .toLowerCase();
+
+  const res =
+    $('sres');
+
+  if(!q) {
+
+    res.innerHTML = '';
+
+    closeSR();
+
+    return;
+  }
+
+  const matches =
+    DB.filter(
+      row =>
+        row[0]
+          .toLowerCase()
+          .includes(q) ||
+        row[1]
+          .toLowerCase()
+          .includes(q)
+    ).slice(0,8);
+
+  if(!matches.length) {
+
+    res.innerHTML =
+      `<div class="ri-msg">
+        No matching locations found
+      </div>`;
+
+    openSR();
+
+    return;
+  }
+
+  res.innerHTML = '';
+
+  matches.forEach(
+    row => {
+
+      const item =
+        document.createElement(
+          'div'
         );
-      }
-    );
+
+      item.className =
+        'ri';
+
+      item.innerHTML =
+        `<div class="ri-icon">⌖</div>
+
+         <div class="ri-t">
+           <div class="ri-n">
+             ${row[0]}
+           </div>
+
+           <div class="ri-s">
+             ${row[1]}
+           </div>
+         </div>`;
+
+      item.addEventListener(
+        'click',
+        () => {
+
+          setOrigin(
+            row[2],
+            row[3],
+            row[0]+
+            ', '+
+            row[1]
+          );
+
+          $('sinp').value =
+            row[0];
+
+          $('sclr').classList.add(
+            'on'
+          );
+
+          closeSR();
+
+          map.setView(
+            [row[2],row[3]],
+            14
+          );
+        }
+      );
+
+      res.appendChild(item);
+    }
+  );
+
+  openSR();
+}
 
 
-    if (window.visualViewport) {
+$('sinp').addEventListener(
+  'input',
+  e => {
 
-      window.visualViewport.addEventListener(
-        'resize',
-        reposition
+    const value =
+      e.target.value;
+
+    if(value.trim()) {
+
+      $('sclr').classList.add(
+        'on'
+      );
+
+    } else {
+
+      $('sclr').classList.remove(
+        'on'
       );
     }
 
-
-    /* =========================================================
-       DELAY
-       ========================================================= */
-
-    $('e-delay').addEventListener(
-      'input',
-      () => {
-
-        if (origin) {
-          draw();
-        }
-      }
-    );
+    searchLocations(value);
+  }
+);
 
 
-    /* =========================================================
-       INITIAL UI
-       ========================================================= */
+$('sinp').addEventListener(
+  'keydown',
+  e => {
 
-    collapsePanel();
+    if(e.key === 'Escape') {
 
-    reposition();
-
-
-    /* =========================================================
-       SERVICE WORKER
-       ========================================================= */
-
-    if ('serviceWorker' in navigator) {
-
-      window.addEventListener(
-        'load',
-        async () => {
-
-          try {
-
-            await navigator.serviceWorker.register(
-              './service-worker.js',
-              {
-                scope: './'
-              }
-            );
-
-          } catch (error) {
-
-            console.error(
-              'Service worker registration failed:',
-              error
-            );
-          }
-        }
-      );
+      clearSearch();
     }
-  </script>
+  }
+);
+
+
+/* =========================================================
+   OUTSIDE SEARCH CLICK
+   ========================================================= */
+
+document.addEventListener(
+  'click',
+  e => {
+
+    if(
+      !$('search-area').contains(
+        e.target
+      )
+    ) {
+
+      closeSR();
+    }
+  }
+);
+
+
+/* =========================================================
+   PANEL
+   ========================================================= */
+
+const PANEL =
+  $('panel');
+
+const PTOG =
+  $('ptoggle');
+
+let panelExp = false;
+let dragging = false;
+let dragStartY = 0;
+let dragCurY = 0;
+
+
+function expandPanel() {
+
+  panelExp = true;
+
+  PANEL.classList.add(
+    'exp'
+  );
+
+  $('vcol').style.display =
+    'none';
+
+  $('vexp').style.display =
+    'block';
+
+  renderTypes();
+  renderRings();
+  renderStats();
+
+  setTimeout(
+    () => map.invalidateSize(),
+    350
+  );
+}
+
+
+function collapsePanel() {
+
+  panelExp = false;
+
+  PANEL.classList.remove(
+    'exp'
+  );
+
+  $('vcol').style.display =
+    'block';
+
+  $('vexp').style.display =
+    'none';
+
+  setTimeout(
+    () => map.invalidateSize(),
+    350
+  );
+}
+
+
+PTOG.addEventListener(
+  'touchstart',
+  e => {
+
+    dragging = true;
+
+    dragStartY =
+      e.touches[0].clientY;
+
+    dragCurY =
+      dragStartY;
+
+    PANEL.style.transition =
+      'none';
+
+  },
+  {
+    passive:true
+  }
+);
+
+
+PTOG.addEventListener(
+  'touchmove',
+  e => {
+
+    if(!dragging) return;
+
+    dragCurY =
+      e.touches[0].clientY;
+
+    const dy =
+      dragCurY -
+      dragStartY;
+
+    if(
+      panelExp &&
+      dy < 0
+    ) return;
+
+    if(
+      !panelExp &&
+      dy > 0
+    ) return;
+
+    PANEL.style.transform =
+      panelExp
+        ? `translateY(${Math.max(0,dy)}px)`
+        : `translateY(calc(100% - 76px + ${Math.min(0,dy)}px))`;
+
+  },
+  {
+    passive:true
+  }
+);
+
+
+PTOG.addEventListener(
+  'touchend',
+  () => {
+
+    if(!dragging) return;
+
+    dragging = false;
+
+    PANEL.style.transition =
+      '';
+
+    const dy =
+      dragCurY -
+      dragStartY;
+
+    if(
+      !panelExp &&
+      dy < -25
+    ) {
+
+      expandPanel();
+
+    } else if(
+      panelExp &&
+      dy > 25
+    ) {
+
+      collapsePanel();
+
+    } else {
+
+      PANEL.style.transform =
+        '';
+    }
+  }
+);
+
+
+/* =========================================================
+   POSITIONING
+   ========================================================= */
+
+function reposition() {
+
+  requestAnimationFrame(
+    () => {
+
+      const panelVisible =
+        panelExp || origin;
+
+      const panelOffset =
+        panelVisible
+          ? 88
+          : 0;
+
+      const searchArea =
+        $('search-area');
+
+      if(searchArea) {
+        searchArea.style.bottom =
+          '';
+      }
+
+      $('olbl').style.bottom =
+        `calc(var(--safe-bottom) + ${
+          84 + panelOffset
+        }px)`;
+
+      $('quick-start').style.bottom =
+        `calc(var(--safe-bottom) + ${
+          82 + panelOffset
+        }px)`;
+    }
+  );
+}
+
+
+window.addEventListener(
+  'resize',
+  reposition
+);
+
+window.addEventListener(
+  'orientationchange',
+  () => {
+
+    setTimeout(
+      reposition,
+      250
+    );
+  }
+);
+
+
+if(window.visualViewport) {
+
+  window.visualViewport.addEventListener(
+    'resize',
+    reposition
+  );
+}
+
+
+/* =========================================================
+   INITIALISE
+   ========================================================= */
+
+renderTypes();
+renderRings();
+renderStats();
+
+reposition();
+
+updateQuickStart();
+
+</script>
 
 </body>
 </html>
