@@ -1,0 +1,65 @@
+/* Add this stylesheet after the app's inline <style> block. */
+
+/* Make location search the clearest next step before an incident starts. */
+#search-area::before {
+  content:"Find the incident location";
+  display:block;
+  margin:0 2px 7px;
+  color:#007aff;
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.01em;
+}
+
+#search-card {
+  min-height:58px !important;
+  background:#fff !important;
+  border:2px solid #007aff !important;
+  box-shadow:0 0 0 4px rgba(0,122,255,.12), 0 4px 12px rgba(0,0,0,.08) !important;
+  transition:border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+
+#search-card:focus-within {
+  border-color:#005ecb !important;
+  box-shadow:0 0 0 5px rgba(0,122,255,.22), 0 7px 18px rgba(0,122,255,.16) !important;
+  transform:translateY(-1px);
+}
+
+#search-icon { color:#007aff !important; }
+
+#sinp {
+  height:56px !important;
+  font-size:16px !important;
+  font-weight:600 !important;
+}
+
+#sinp::placeholder { color:#51515a !important; }
+
+/* Give Start clear priority over Stop in either panel state. */
+.cbtns,
+.ebtns {
+  grid-template-columns:1.25fr .75fr !important;
+}
+
+.cb,
+.eb {
+  min-height:60px !important;
+  border-radius:16px !important;
+  font-size:17px !important;
+}
+
+.cb-go,
+.eb-go,
+#quick-start {
+  background:#34c759 !important;
+  color:#fff !important;
+  font-weight:800 !important;
+  box-shadow:0 7px 16px rgba(52,199,89,.34) !important;
+}
+
+#quick-start {
+  min-height:56px !important;
+  padding:0 22px !important;
+  border-radius:18px !important;
+  font-size:16px !important;
+}
