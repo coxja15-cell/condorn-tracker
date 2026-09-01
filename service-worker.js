@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cordon-tracker-v2';
+const CACHE_NAME = 'cordon-tracker-v3';
 
 const APP_FILES = [
   './',
@@ -37,25 +37,28 @@ self.addEventListener('fetch', event => {
       fetch(request)
         .then(response => {
           const copy = response.clone();
-
-          caches.open(CACHE_NAME).then(cache => {
-            cache.put('./index.html', copy);
-          });
-
+          caches.open(CACHE_NAME).then(cache => cache.put('./index.html', copy));
           return response;
         })
-        .catch(() =>
-          caches.match('./index.html')
-        )
+        .catch(() => caches.match('./index.html'))
     );
-
     return;
   }
 
+  // Cache-first, but now also store any runtime-fetched asset (Leaflet JS/CSS,
+  // tiles, etc.) so a second offline visit actually has them available —
+  // the previous version never wrote these back to the cache.
   event.respondWith(
-    caches.match(request)
-      .then(cached =>
-        cached || fetch(request)
-      )
+    caches.match(request).then(cached => {
+      if (cached) return cached;
+
+      return fetch(request).then(response => {
+        if (response && response.status === 200) {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
+        }
+        return response;
+      }).catch(() => cached);
+    })
   );
 });
