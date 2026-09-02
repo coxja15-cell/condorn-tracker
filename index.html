@@ -633,6 +633,1185 @@ const RING_BEARINGS = { walk:0, run:72, cycle:144, vehicle:216, highway:288 };
 
 
 /* =========================================================
+   OFFLINE FALLBACK LOCATIONS (used only if the live geocoder
+   is unreachable — e.g. no network)
+   ========================================================= */
+
+const DB = [
+  ["Kaitaia","Northland",-35.1134,173.2653],["Kerikeri","Bay of Islands",-35.1831,173.9480],
+  ["Paihia","Bay of Islands",-35.2794,174.0892],["Whangarei","Northland",-35.7251,174.3237],
+  ["Dargaville","Northland",-35.9350,173.8739],["Warkworth","Auckland",-36.3978,174.6630],
+  ["Orewa","Auckland",-36.5833,174.6917],["Albany","Auckland",-36.7245,174.6964],
+  ["Takapuna","Auckland",-36.7870,174.7720],["Auckland CBD","Auckland",-36.8485,174.7633],
+  ["Newmarket","Auckland",-36.8699,174.7760],["Mt Eden","Auckland",-36.8770,174.7645],
+  ["Onehunga","Auckland",-36.9246,174.7861],["Manukau","Auckland",-37.0100,174.8840],
+  ["Papakura","Auckland",-37.0650,174.9430],["Pukekohe","Auckland",-37.2030,174.9000],
+  ["Hamilton","Waikato",-37.7870,175.2793],["Cambridge","Waikato",-37.8897,175.4700],
+  ["Te Awamutu","Waikato",-38.0103,175.3230],["Taupo","Waikato",-38.6857,176.0702],
+  ["Rotorua","Bay of Plenty",-38.1368,176.2497],["Tauranga","Bay of Plenty",-37.6878,176.1651],
+  ["Whakatane","Bay of Plenty",-37.9534,176.9907],["Gisborne","Gisborne",-38.6623,178.0176],
+  ["Napier","Hawke's Bay",-39.4928,176.9120],["Hastings","Hawke's Bay",-39.6381,176.8497],
+  ["New Plymouth","Taranaki",-39.0573,174.0752],["Palmerston North","Manawatu",-40.3523,175.6082],
+  ["Whanganui","Manawatu",-39.9301,175.0479],["Masterton","Wairarapa",-40.9597,175.6575],
+  ["Wellington","Wellington",-41.2866,174.7756],["Nelson","Nelson",-41.2706,173.2840],
+  ["Blenheim","Marlborough",-41.5134,173.9612],["Westport","West Coast",-41.7526,171.6037],
+  ["Greymouth","West Coast",-42.4500,171.2100],["Christchurch","Canterbury",-43.5321,172.6362],
+  ["Timaru","Canterbury",-44.3960,171.2530],["Oamaru","Otago",-45.0975,170.9700],
+  ["Dunedin","Otago",-45.8788,170.5028],["Queenstown","Otago",-45.0312,168.6626],
+  ["Wanaka","Otago",-44.6980,169.1320],["Invercargill","Southland",-46.4132,168.3538]
+];
+
+
+/* =========================================================
+   HELPERS
+   ========================================================= */
+
+const $ = id => document.getElementById(id);
+
+function fmt(m){ return m < 1000 ? Math.round(m)+' m' : (m/1000).toFixed(2)+' km'; }
+
+function destinationPoint(origin, distance, bearing){
+  const R = 6371000;
+  const lat1 = origin.lat * Math.PI/180, lon1 = origin.lng * Math.PI/180, brng = bearing * Math.PI/180;
+  const lat2 = Math.asin(Math.sin(lat1)*Math.cos(distance/R) + Math.cos(lat1)*Math.sin(distance/R)*Math.cos(brng));
+  const lon2 = lon1 + Math.atan2(Math.sin(brng)*Math.sin(distance/R)*Math.cos(lat1), Math.cos(distance/R) - Math.sin(lat1)*Math.sin(lat2));
+  return { lat:lat2*180/Math.PI, lng:lon2*180/Math.PI };
+}
+
+
+/* =========================================================
+   MAP
+   ========================================================= */
+
+const map = L.map('map',{ zoomControl:false, attributionControl:true, doubleClickZoom:false })
+  .setView([-36.8485,174.7633], 12);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19, attribution:'© OpenStreetMap' }).addTo(map);
+
+let origin = null;
+let originLabel = '';
+let originMarker = null;
+let userMarker = null;
+
+
+/* =========================================================
+   DRAW RINGS
+   ========================================================= */
+
+function draw(){
+  if(!origin) return;
+
+  const incidentStartSeconds = Math.max(0, delayMinutes) * 60;
+  const liveSeconds = going && startAt ? (Date.now()-startAt)/1000 : 0;
+  const elapsed = incidentStartSeconds + elapsedWhenPaused + liveSeconds;
+
+  RINGS.forEach(r => {
+    if(!r.on){
+      if(circles[r.id]){ map.removeLayer(circles[r.id]); delete circles[r.id]; }
+      if(ringLabels[r.id]){ map.removeLayer(ringLabels[r.id]); delete ringLabels[r.id]; }
+      updateRingReadouts(r.id, '0 m');
+      return;
+    }
+
+    const radius = r.speed * 1000/3600 * elapsed;
+
+    if(radius <= 0){ updateRingReadouts(r.id, '0 m'); return; }
+
+    if(circles[r.id]){
+      circles[r.id].setLatLng(origin);
+      circles[r.id].setRadius(radius);
+    } else {
+      circles[r.id] = L.circle(origin, { radius, color:r.color, fillColor:r.color, fillOpacity:.08, weight:2, dashArray:'6 4' }).addTo(map);
+    }
+
+    const labelPoint = destinationPoint(origin, Math.max(radius,35), RING_BEARINGS[r.id] || 0);
+    const html = `<span style="color:${r.color}">${r.label}: ${fmt(radius)}</span>`;
+
+    if(ringLabels[r.id]){
+      ringLabels[r.id].setLatLng(labelPoint);
+      ringLabels[r.id].setIcon(L.divIcon({ className:'ring-label', html, iconSize:null, iconAnchor:[0,0] }));
+    } else {
+      ringLabels[r.id] = L.marker(labelPoint, { interactive:false, keyboard:false, zIndexOffset:100 }).addTo(map);
+      ringLabels[r.id].setIcon(L.divIcon({ className:'ring-label', html, iconSize:null, iconAnchor:[0,0] }));
+    }
+
+    updateRingReadouts(r.id, fmt(radius));
+  });
+}
+
+function updateRingReadouts(id, text){
+  const listEl = $('rr-'+id);
+  if(listEl) listEl.textContent = text;
+
+  const miniEl = $('ms-'+id);
+  if(miniEl) miniEl.textContent = text;
+}
+
+
+/* =========================================================
+   TIMER
+   ========================================================= */
+
+let going = false;
+let startAt = null;
+let elapsedWhenPaused = 0;
+let ticker = null;
+let delayMinutes = 0;
+
+function setStatusIcon(){
+  const t = TYPES[currentType];
+  $('status-icon').innerHTML = t.icon;
+  $('status-icon').style.background = t.color;
+}
+
+function startTimer(){
+  if(!origin){ showTab('tracker'); $('sinp').focus(); return; }
+  if(going) return;
+
+  going = true;
+  startAt = Date.now();
+  ticker = setInterval(draw, 300);
+  draw();
+
+  $('go-btn').innerHTML = '<svg class="icon filled" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2.5"></rect></svg> Stop';
+  $('go-btn').classList.remove('btn-go');
+  $('go-btn').classList.add('btn-stop');
+  $('go-btn').onclick = stopTimer;
+
+  $('compact-status').textContent = 'Live — expanding';
+  $('live-dot').classList.remove('hidden');
+}
+
+function stopTimer(){
+  if(!going) return;
+
+  if(startAt) elapsedWhenPaused += (Date.now()-startAt)/1000;
+  startAt = null;
+  going = false;
+  clearInterval(ticker);
+  ticker = null;
+
+  $('go-btn').innerHTML = '<svg class="icon filled" viewBox="0 0 24 24"><path d="M7 5.5v13l11-6.5-11-6.5Z"></path></svg> Start';
+  $('go-btn').classList.remove('btn-stop');
+  $('go-btn').classList.add('btn-go');
+  $('go-btn').onclick = startTimer;
+
+  $('compact-status').textContent = 'Paused';
+  $('live-dot').classList.add('hidden');
+
+  draw();
+}
+
+function resetTimer(){
+  stopTimer();
+  startAt = null;
+  elapsedWhenPaused = 0;
+
+  Object.values(circles).forEach(c => map.removeLayer(c));
+  circles = {};
+  Object.values(ringLabels).forEach(l => map.removeLayer(l));
+  ringLabels = {};
+
+  $('compact-status').textContent = origin ? 'Ready' : 'Idle';
+
+  RINGS.forEach(r => updateRingReadouts(r.id, '0 m'));
+}
+
+function adjustDelay(delta){
+  delayMinutes = Math.max(0, Math.min(999, delayMinutes + delta));
+  $('delay-value').textContent = delayMinutes + ' min ago';
+  if(origin) draw();
+}
+
+
+/* =========================================================
+   SHARE
+   ========================================================= */
+
+async function shareIncident(){
+  const t = TYPES[currentType];
+  let text = t.label + ' Incident — Cordon Tracker';
+  let url = window.location.href.split('?')[0];
+
+  if(origin){
+    url += `?lat=${origin.lat.toFixed(6)}&lon=${origin.lng.toFixed(6)}&type=${currentType}&delay=${delayMinutes}`;
+    text += '\n📍 ' + (originLabel || 'Unknown location');
+    const active = RINGS.filter(r => r.on);
+    if(active.length) text += '\n🔴 Active rings: ' + active.map(r => r.label).join(', ');
+  }
+
+  if(navigator.share){
+    try { await navigator.share({ title:'Cordon Tracker', text, url }); }
+    catch(e){ if(e.name !== 'AbortError') console.warn('Share failed:', e); }
+  } else {
+    try { await navigator.clipboard.writeText(url); alert('Link copied!'); }
+    catch(e){ alert(url); }
+  }
+}
+
+
+/* =========================================================
+   RESTORE SHARED INCIDENT
+   ========================================================= */
+
+(() => {
+  const p = new URLSearchParams(window.location.search);
+  const lat = parseFloat(p.get('lat'));
+  const lon = parseFloat(p.get('lon'));
+  const type = p.get('type');
+  const delay = parseInt(p.get('delay') || '0', 10);
+
+  if(Number.isFinite(lat) && Number.isFinite(lon)){
+    setOrigin(lat, lon, 'Shared incident');
+    if(type && TYPES[type]){ currentType = type; }
+    delayMinutes = Number.isFinite(delay) ? delay : 0;
+    draw();
+  }
+})();
+
+
+/* =========================================================
+   LOCATION
+   ========================================================= */
+
+function setOrigin(lat, lng, label){
+  origin = { lat, lng };
+  originLabel = label || 'Selected location';
+
+  if(originMarker) map.removeLayer(originMarker);
+
+  originMarker = L.marker(origin, { draggable:true }).addTo(map);
+  originMarker.on('dragend', e => {
+    const p = e.target.getLatLng();
+    origin = { lat:p.lat, lng:p.lng };
+    originLabel = 'Selected location';
+    updateLocationUI();
+    draw();
+  });
+
+  map.setView(origin, Math.max(map.getZoom(), 13));
+  updateLocationUI();
+  draw();
+}
+
+function updateLocationUI(){
+  $('compact-location').textContent = originLabel || 'Tap the map or search for a location';
+  $('compact-status').textContent = going ? 'Live — expanding' : 'Ready';
+}
+
+map.on('click', e => setOrigin(e.latlng.lat, e.latlng.lng, 'Map location'));
+
+
+/* =========================================================
+   USER LOCATION
+   ========================================================= */
+
+function locateUser(){
+  if(!navigator.geolocation){ alert('Location services are not available.'); return; }
+
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const location = [pos.coords.latitude, pos.coords.longitude];
+      const icon = L.divIcon({
+        className:'user-location-marker',
+        html:'<span class="user-location-marker__halo"></span><span class="user-location-marker__dot"></span>',
+        iconSize:[28,28], iconAnchor:[14,14]
+      });
+
+      if(userMarker) userMarker.setLatLng(location);
+      else {
+        userMarker = L.marker(location, { icon, title:'Your location', zIndexOffset:1000 }).addTo(map);
+        userMarker.bindPopup('<strong>Your location</strong>');
+      }
+      map.setView(location, 15);
+    },
+    err => { console.warn('Location error:', err); alert('Unable to get your location.'); },
+    { enableHighAccuracy:true, timeout:10000, maximumAge:30000 }
+  );
+}
+
+function fitMap(){
+  if(!origin) return;
+  const layers = Object.values(circles);
+  if(!layers.length){ map.setView(origin, 14); return; }
+  map.fitBounds(L.featureGroup(layers).getBounds().pad(.15));
+}
+
+
+/* =========================================================
+   TYPE LIST (Settings)
+   ========================================================= */
+
+function renderTypeList(){
+  const row = $('type-list');
+  row.innerHTML = '';
+
+  Object.entries(TYPES).forEach(([id, t]) => {
+    const btn = document.createElement('button');
+    btn.className = 'list-row';
+    btn.style.width = '100%';
+    btn.style.textAlign = 'left';
+
+    btn.innerHTML = `
+      <div class="row-icon" style="background:${t.color}">${t.icon}</div>
+      <div class="row-text"><div class="row-title">${t.label}</div></div>
+      ${id === currentType ? '<svg class="icon row-check" viewBox="0 0 24 24" style="width:18px;height:18px;"><path d="m5 13 4 4L19 7"></path></svg>' : ''}
+    `;
+
+    btn.onclick = () => { currentType = id; setStatusIcon(); renderTypeList(); };
+
+    row.appendChild(btn);
+  });
+}
+
+
+/* =========================================================
+   RING LIST (Rings tab)
+   ========================================================= */
+
+function renderRingList(){
+  const row = $('ring-list');
+  row.innerHTML = '';
+
+  RINGS.forEach(r => {
+    const item = document.createElement('div');
+    item.className = 'list-row';
+
+    item.innerHTML = `
+      <button class="ios-switch ${r.on ? 'on' : ''}" aria-label="Toggle ${r.label}"><span class="knob"></span></button>
+      <div class="row-text">
+        <div class="row-title">${r.label}</div>
+        <div class="row-subtitle">${r.speed} km/h</div>
+      </div>
+      <div class="row-value" id="rr-${r.id}">0 m</div>
+    `;
+
+    item.querySelector('.ios-switch').onclick = () => {
+      r.on = !r.on;
+      item.querySelector('.ios-switch').classList.toggle('on', r.on);
+      draw();
+      renderMiniStats();
+    };
+
+    row.appendChild(item);
+  });
+}
+
+
+/* =========================================================
+   MINI STATS (Tracker bottom sheet)
+   ========================================================= */
+
+function renderMiniStats(){
+  const row = $('mini-stats');
+  row.innerHTML = '';
+
+  RINGS.filter(r => r.on).forEach(r => {
+    const el = document.createElement('div');
+    el.className = 'mini-stat';
+    el.innerHTML = `<div class="v" id="ms-${r.id}">0 m</div><div class="l">${r.label}</div>`;
+    row.appendChild(el);
+  });
+}
+
+
+/* =========================================================
+   SEARCH
+   ========================================================= */
+
+function openSR(){ $('sres').classList.add('open'); }
+function closeSR(){ $('sres').classList.remove('open'); }
+
+function clearSearch(){
+  $('sinp').value = '';
+  $('sclr').classList.remove('on');
+  $('sres').innerHTML = '';
+  closeSR();
+  $('sinp').focus();
+}
+
+/*
+  Live geocoding via OpenStreetMap's Nominatim (free, no API key —
+  works from a static site). Usage policy: https://operations.osmfoundation.org/policies/nominatim/
+  We debounce input and abort superseded requests to stay well under
+  its ~1 request/sec guidance. If the network/API is unavailable, we
+  fall back to the small bundled NZ town list above.
+*/
+
+const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
+
+let searchTimer = null;
+let searchAbort = null;
+
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, c => (
+    { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]
+  ));
+}
+
+function scheduleSearch(value){
+  clearTimeout(searchTimer);
+
+  const q = value.trim();
+
+  if(!q){
+    if(searchAbort) searchAbort.abort();
+    $('sres').innerHTML = '';
+    closeSR();
+    return;
+  }
+
+  searchTimer = setTimeout(() => performSearch(q), 350);
+}
+
+async function performSearch(q){
+  if(searchAbort) searchAbort.abort();
+  searchAbort = new AbortController();
+
+  $('sres').innerHTML = `<div class="ri-msg">Searching…</div>`;
+  openSR();
+
+  const url = `${NOMINATIM_URL}?format=jsonv2&addressdetails=1&limit=8`+
+              `&countrycodes=nz&q=${encodeURIComponent(q)}`;
+
+  try {
+    const response = await fetch(url, {
+      signal: searchAbort.signal,
+      headers: { 'Accept':'application/json' }
+    });
+
+    if(!response.ok) throw new Error('Search request failed');
+
+    const data = await response.json();
+
+    renderResults(
+      data.map(item => ({
+        title: item.display_name.split(',')[0],
+        subtitle: nominatimSubtitle(item),
+        lat: parseFloat(item.lat),
+        lon: parseFloat(item.lon)
+      }))
+    );
+
+  } catch(err){
+    if(err.name === 'AbortError') return; // superseded by a newer keystroke
+
+    console.warn('Live search failed, falling back to offline list:', err);
+    renderResults(searchOfflineDB(q));
+  }
+}
+
+function nominatimSubtitle(item){
+  const a = item.address || {};
+
+  const parts = [
+    a.suburb || a.neighbourhood || a.city_district,
+    a.city || a.town || a.village || a.municipality,
+    a.state || a.region
+  ].filter(Boolean);
+
+  if(parts.length) return parts.join(', ');
+
+  const segments = item.display_name.split(',').map(s => s.trim());
+  return segments.slice(1, 3).join(', ');
+}
+
+function searchOfflineDB(q){
+  const lower = q.toLowerCase();
+
+  return DB
+    .filter(row => row[0].toLowerCase().includes(lower) || row[1].toLowerCase().includes(lower))
+    .slice(0, 8)
+    .map(row => ({ title: row[0], subtitle: row[1], lat: row[2], lon: row[3] }));
+}
+
+function renderResults(items){
+  const res = $('sres');
+
+  if(!items.length){
+    res.innerHTML = `<div class="ri-msg">No matching locations found</div>`;
+    openSR();
+    return;
+  }
+
+  res.innerHTML = '';
+
+  items.forEach(item => {
+    const el = document.createElement('div');
+    el.className = 'ri';
+    el.innerHTML = `
+      <div class="ri-icon"><svg class="icon" viewBox="0 0 24 24"><path d="M12 21s7-7.58 7-12A7 7 0 1 0 5 9c0 4.42 7 12 7 12Z"></path></svg></div>
+      <div class="ri-t"><div class="ri-n">${escapeHtml(item.title)}</div><div class="ri-s">${escapeHtml(item.subtitle)}</div></div>
+    `;
+    el.addEventListener('click', () => {
+      setOrigin(item.lat, item.lon, item.title);
+      $('sinp').value = item.title;
+      $('sclr').classList.add('on');
+      closeSR();
+      map.setView([item.lat, item.lon], 14);
+    });
+    res.appendChild(el);
+  });
+
+  openSR();
+}
+
+$('sinp').addEventListener('input', e => {
+  const value = e.target.value;
+  $('sclr').classList.toggle('on', !!value.trim());
+  scheduleSearch(value);
+});
+
+$('sinp').addEventListener('keydown', e => { if(e.key === 'Escape') clearSearch(); });
+$('sclr').addEventListener('click', clearSearch);
+
+document.addEventListener('click', e => {
+  if(!$('search-card').contains(e.target) && !$('sres').contains(e.target)) closeSR();
+});
+
+
+/* =========================================================
+   TABS / NAVIGATION STACK
+   ========================================================= */
+
+function showTab(name){
+  document.querySelectorAll('.screen').forEach(s => {
+    if(s.id === 'screen-about') return; // pushed screen managed separately
+    s.classList.toggle('active', s.id === 'screen-' + name);
+  });
+  document.querySelectorAll('.tab-item').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+
+  if(name === 'tracker') setTimeout(() => map.invalidateSize(), 50);
+}
+
+function pushAbout(){
+  $('screen-about').classList.add('active');
+}
+function popAbout(){
+  $('screen-about').classList.remove('active');
+}
+
+/* Large-title collapse on scroll */
+document.querySelectorAll('.content-scroll[data-header]').forEach(el => {
+  el.addEventListener('scroll', () => {
+    const header = $(el.dataset.header);
+    header.classList.toggle('collapsed', el.scrollTop > 6);
+  });
+});
+
+
+/* =========================================================
+   INITIALISE
+   ========================================================= */
+
+setStatusIcon();
+renderTypeList();
+renderRingList();
+renderMiniStats();
+draw();
+
+</script>
+
+</body>
+</html>  --ios-orange:#FF9500;
+  --ios-yellow:#FFCC00;
+  --ios-bar-bg:rgba(255,255,255,.78);
+  --ios-shadow:0 8px 26px rgba(0,0,0,.12);
+
+  --r-sm:10px;
+  --r-md:14px;
+  --r-lg:20px;
+
+  --pad-16:16px;
+  --pad-20:20px;
+
+  --safe-top:env(safe-area-inset-top,0px);
+  --safe-bottom:env(safe-area-inset-bottom,0px);
+}
+
+@media (prefers-color-scheme: dark){
+  :root{
+    --ios-bg:#000000;
+    --ios-bg-plain:#000000;
+    --ios-secondary-bg:#1C1C1E;
+    --ios-label:#FFFFFF;
+    --ios-secondary-label:rgba(235,235,245,.6);
+    --ios-tertiary-label:rgba(235,235,245,.3);
+    --ios-separator:rgba(84,84,88,.6);
+    --ios-fill:rgba(120,120,128,.32);
+    --ios-blue:#0A84FF;
+    --ios-green:#30D158;
+    --ios-red:#FF453A;
+    --ios-orange:#FF9F0A;
+    --ios-yellow:#FFD60A;
+    --ios-bar-bg:rgba(28,28,30,.78);
+    --ios-shadow:0 8px 26px rgba(0,0,0,.5);
+  }
+}
+
+*{ box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+
+html,body{
+  width:100%; height:100%; overflow:hidden;
+  background:var(--ios-bg);
+  color:var(--ios-label);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display",system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  overscroll-behavior:none;
+}
+body{ position:fixed; inset:0; }
+
+button,input{ font:inherit; color:inherit; touch-action:manipulation; }
+button{ border:0; background:none; cursor:pointer; }
+input{ outline:none; border:0; background:none; }
+
+svg.icon{ width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; display:block; }
+svg.icon.filled{ fill:currentColor; stroke:none; }
+
+/* =========================================================
+   SCREENS
+   ========================================================= */
+
+#app{ position:fixed; inset:0; overflow:hidden; }
+
+.screen{
+  position:fixed;
+  inset:0;
+  bottom:calc(49px + var(--safe-bottom));
+  display:none;
+  background:var(--ios-bg);
+}
+.screen.active{ display:block; }
+
+.screen--pushed{
+  z-index:20;
+  transform:translateX(100%);
+  transition:transform .32s cubic-bezier(.32,.72,0,1);
+}
+.screen--pushed.active{ display:block; transform:translateX(0); }
+
+/* =========================================================
+   LARGE COLLAPSIBLE NAV TITLE (Rings / Settings / About)
+   ========================================================= */
+
+.nav-large{
+  position:sticky; top:0; z-index:10;
+  padding:calc(var(--safe-top) + 2px) var(--pad-20) 4px;
+  background:var(--ios-bg);
+  transition:padding .18s ease, box-shadow .18s ease;
+}
+.nav-large h1{
+  font-size:34px; font-weight:800; letter-spacing:-.02em;
+  padding:6px 0 8px;
+  transition:font-size .18s ease, opacity .18s ease, height .18s ease;
+}
+.nav-large .inline-title{
+  position:absolute; left:0; right:0; top:var(--safe-top);
+  height:44px; display:flex; align-items:center; justify-content:center;
+  font-size:17px; font-weight:600;
+  opacity:0; pointer-events:none;
+  transition:opacity .15s ease;
+}
+.nav-large.collapsed{
+  box-shadow:0 1px 0 var(--ios-separator);
+}
+.nav-large.collapsed h1{ font-size:0; opacity:0; height:0; padding:0; overflow:hidden; }
+.nav-large.collapsed .inline-title{ opacity:1; }
+
+.content-scroll{
+  position:absolute; inset:0; top:0;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+  padding-top:56px;
+  padding-bottom:calc(var(--pad-20) + 12px);
+}
+
+/* =========================================================
+   FLOATING NAV BAR (Tracker / About)
+   ========================================================= */
+
+.nav-bar{
+  position:absolute; left:0; right:0; top:0; z-index:60;
+  height:calc(44px + var(--safe-top));
+  padding-top:var(--safe-top);
+  display:flex; align-items:center; justify-content:center;
+  background:var(--ios-bar-bg);
+  backdrop-filter:blur(20px) saturate(180%);
+  -webkit-backdrop-filter:blur(20px) saturate(180%);
+  border-bottom:1px solid var(--ios-separator);
+}
+.nav-bar__title{ font-size:17px; font-weight:600; }
+
+.nav-back{
+  position:absolute; left:6px; top:calc(var(--safe-top) + 2px);
+  display:flex; align-items:center; gap:2px;
+  height:40px; padding:0 10px 0 4px;
+  color:var(--ios-blue); font-size:17px;
+}
+
+/* =========================================================
+   LIST GROUPS (insetGrouped)
+   ========================================================= */
+
+.list-group{
+  background:var(--ios-secondary-bg);
+  border-radius:var(--r-md);
+  margin:0 var(--pad-16) 20px;
+  overflow:hidden;
+}
+
+.list-row{
+  display:flex; align-items:center; gap:12px;
+  min-height:44px; padding:11px var(--pad-16);
+  position:relative;
+}
+.list-row + .list-row::before{
+  content:""; position:absolute; left:var(--pad-16); right:0; top:0; height:.5px;
+  background:var(--ios-separator);
+}
+.list-row:active{ background:var(--ios-fill); }
+
+.row-icon{
+  width:29px; height:29px; border-radius:8px; flex:0 0 auto;
+  display:flex; align-items:center; justify-content:center;
+  color:#fff;
+}
+.row-icon svg{ width:17px; height:17px; }
+
+.row-text{ flex:1; min-width:0; display:flex; flex-direction:column; gap:1px; }
+.row-title{ font-size:15px; font-weight:400; }
+.row-subtitle{ font-size:12px; color:var(--ios-secondary-label); }
+
+.row-value{ font-size:15px; color:var(--ios-secondary-label); }
+.row-chevron{ color:var(--ios-tertiary-label); flex:0 0 auto; }
+.row-check{ color:var(--ios-blue); flex:0 0 auto; }
+
+.list-footnote{
+  font-size:13px; color:var(--ios-secondary-label);
+  padding:6px var(--pad-20) 4px;
+  line-height:1.4;
+}
+
+/* =========================================================
+   IOS SWITCH
+   ========================================================= */
+
+.ios-switch{
+  width:51px; height:31px; border-radius:16px; flex:0 0 auto;
+  background:var(--ios-fill); position:relative;
+  transition:background .2s ease;
+}
+.ios-switch.on{ background:var(--ios-green); }
+.ios-switch .knob{
+  position:absolute; top:2px; left:2px; width:27px; height:27px; border-radius:50%;
+  background:#fff; box-shadow:0 3px 8px rgba(0,0,0,.2);
+  transition:transform .2s ease;
+}
+.ios-switch.on .knob{ transform:translateX(20px); }
+
+/* =========================================================
+   STEPPER
+   ========================================================= */
+
+.ios-stepper{
+  display:flex; align-items:center; height:32px; border-radius:8px;
+  background:var(--ios-fill); overflow:hidden; flex:0 0 auto;
+}
+.ios-stepper button{
+  width:34px; height:100%; font-size:19px; font-weight:500;
+  display:flex; align-items:center; justify-content:center;
+}
+.ios-stepper button:active{ background:rgba(120,120,128,.24); }
+.ios-stepper .div{ width:1px; height:60%; background:var(--ios-separator); }
+
+/* =========================================================
+   TAB BAR
+   ========================================================= */
+
+.tab-bar{
+  position:fixed; left:0; right:0; bottom:0; z-index:500;
+  height:calc(49px + var(--safe-bottom));
+  padding-bottom:var(--safe-bottom);
+  display:flex;
+  background:var(--ios-bar-bg);
+  backdrop-filter:blur(20px) saturate(180%);
+  -webkit-backdrop-filter:blur(20px) saturate(180%);
+  border-top:1px solid var(--ios-separator);
+}
+.tab-item{
+  flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:2px; color:var(--ios-secondary-label);
+}
+.tab-item svg{ width:25px; height:25px; }
+.tab-item span{ font-size:10px; font-weight:600; }
+.tab-item.active{ color:var(--ios-blue); }
+
+/* =========================================================
+   TRACKER SCREEN
+   ========================================================= */
+
+#screen-tracker{ background:var(--ios-bg-plain); }
+
+#map{ position:absolute; inset:0; z-index:0; }
+.leaflet-control-zoom{ display:none !important; }
+.leaflet-popup-content-wrapper{
+  background:var(--ios-secondary-bg) !important; color:var(--ios-label) !important;
+  border-radius:var(--r-sm) !important; box-shadow:var(--ios-shadow) !important;
+}
+.leaflet-popup-tip{ background:var(--ios-secondary-bg) !important; }
+
+.user-location-marker{ background:transparent; border:0; }
+.user-location-marker__halo,.user-location-marker__dot{ position:absolute; border-radius:50%; }
+.user-location-marker__halo{ inset:0; background:rgba(0,122,255,.24); animation:pulse 1.8s ease-out infinite; }
+.user-location-marker__dot{ inset:7px; background:var(--ios-blue); border:3px solid #fff; box-shadow:0 1px 5px rgba(0,0,0,.3); }
+@keyframes pulse{ 0%{transform:scale(.65);opacity:.85;} 100%{transform:scale(1.35);opacity:0;} }
+
+.ring-label{
+  background:var(--ios-bar-bg) !important; backdrop-filter:blur(10px);
+  border:none !important; border-radius:8px !important;
+  box-shadow:0 2px 8px rgba(0,0,0,.16) !important;
+  color:var(--ios-label) !important;
+  font-size:11px !important; font-weight:700 !important;
+  padding:4px 8px !important; white-space:nowrap;
+}
+.ring-label::before{ display:none !important; }
+
+/* Floating search, positioned under the nav bar like Maps */
+
+.search-float{
+  position:absolute; left:var(--pad-16); right:var(--pad-16);
+  top:calc(44px + var(--safe-top) + 10px);
+  z-index:55;
+}
+.search-card{
+  display:flex; align-items:center; gap:8px;
+  height:44px; padding:0 12px;
+  background:var(--ios-bar-bg);
+  backdrop-filter:blur(20px) saturate(180%);
+  -webkit-backdrop-filter:blur(20px) saturate(180%);
+  border-radius:var(--r-sm);
+  box-shadow:var(--ios-shadow);
+}
+.search-card svg{ color:var(--ios-secondary-label); flex:0 0 auto; }
+#sinp{ flex:1; min-width:0; height:100%; font-size:16px; color:var(--ios-label); }
+#sinp::placeholder{ color:var(--ios-secondary-label); }
+#sclr{
+  display:none; width:20px; height:20px; border-radius:50%;
+  background:var(--ios-tertiary-label); color:var(--ios-bg-plain);
+  align-items:center; justify-content:center; font-size:13px; flex:0 0 auto;
+}
+#sclr.on{ display:flex; }
+
+#sres{
+  display:none; margin-top:6px; max-height:min(46vh,380px); overflow-y:auto;
+  background:var(--ios-secondary-bg); border-radius:var(--r-md);
+  box-shadow:var(--ios-shadow); -webkit-overflow-scrolling:touch;
+}
+#sres.open{ display:block; }
+.ri{ display:flex; align-items:center; gap:10px; min-height:52px; padding:8px var(--pad-16); position:relative; }
+.ri + .ri::before{ content:""; position:absolute; left:var(--pad-16); right:0; top:0; height:.5px; background:var(--ios-separator); }
+.ri:active{ background:var(--ios-fill); }
+.ri-icon{ width:30px; height:30px; border-radius:50%; background:var(--ios-fill); color:var(--ios-blue); display:flex; align-items:center; justify-content:center; flex:0 0 auto; }
+.ri-icon svg{ width:15px; height:15px; }
+.ri-t{ min-width:0; flex:1; }
+.ri-n{ font-size:15px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ri-s{ margin-top:1px; font-size:12px; color:var(--ios-secondary-label); }
+.ri-msg{ padding:16px; text-align:center; font-size:14px; color:var(--ios-secondary-label); }
+
+/* Map side controls, native pill buttons */
+
+.map-controls{
+  position:absolute; right:var(--pad-16); z-index:55;
+  top:calc(44px + var(--safe-top) + 62px);
+  display:flex; flex-direction:column; gap:1px;
+  background:var(--ios-bar-bg);
+  backdrop-filter:blur(20px) saturate(180%);
+  -webkit-backdrop-filter:blur(20px) saturate(180%);
+  border-radius:var(--r-sm);
+  box-shadow:var(--ios-shadow);
+  overflow:hidden;
+}
+.map-control{
+  width:44px; height:44px; display:flex; align-items:center; justify-content:center;
+  color:var(--ios-blue); position:relative;
+}
+.map-control + .map-control::before{
+  content:""; position:absolute; top:0; left:6px; right:6px; height:.5px; background:var(--ios-separator);
+}
+.map-control:active{ background:var(--ios-fill); }
+
+/* Bottom status / controls sheet, static (no drag) */
+
+.bottom-sheet{
+  position:absolute; left:0; right:0; bottom:0; z-index:60;
+  padding:12px var(--pad-16) 14px;
+  background:var(--ios-bar-bg);
+  backdrop-filter:blur(24px) saturate(180%);
+  -webkit-backdrop-filter:blur(24px) saturate(180%);
+  border-top:1px solid var(--ios-separator);
+}
+
+.status-row{ display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+.status-icon{
+  width:34px; height:34px; border-radius:10px; flex:0 0 auto;
+  display:flex; align-items:center; justify-content:center; color:#fff;
+}
+.status-icon svg{ width:18px; height:18px; }
+.status-text{ min-width:0; flex:1; }
+#compact-location{ font-size:14px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#compact-status{ margin-top:1px; font-size:12px; color:var(--ios-secondary-label); }
+.live-dot{ width:8px; height:8px; border-radius:50%; background:var(--ios-red); flex:0 0 auto; }
+.live-dot.hidden{ display:none; }
+
+.mini-stats{
+  display:flex; gap:8px; overflow-x:auto; margin-bottom:10px; scrollbar-width:none;
+}
+.mini-stats::-webkit-scrollbar{ display:none; }
+.mini-stat{
+  flex:0 0 auto; min-width:64px; text-align:center;
+  padding:6px 10px; border-radius:10px; background:var(--ios-fill);
+}
+.mini-stat .v{ font-size:12px; font-weight:700; font-variant-numeric:tabular-nums; }
+.mini-stat .l{ margin-top:1px; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--ios-secondary-label); }
+
+.control-row{ display:flex; gap:10px; }
+.btn{
+  flex:1; height:50px; border-radius:var(--r-sm);
+  display:flex; align-items:center; justify-content:center; gap:7px;
+  font-size:16px; font-weight:700;
+}
+.btn:active{ transform:scale(.97); }
+.btn[disabled]{ opacity:.35; }
+.btn-go{ background:var(--ios-green); color:#fff; }
+.btn-stop{ background:var(--ios-red); color:#fff; }
+.btn-reset{
+  flex:0 0 50px; background:var(--ios-fill); color:var(--ios-label);
+}
+
+/* =========================================================
+   MISC
+   ========================================================= */
+
+.about-hero{ display:flex; flex-direction:column; align-items:center; gap:10px; padding:24px 20px 10px; }
+.about-hero .icon{
+  width:72px; height:72px; border-radius:18px; background:#111; color:#fff;
+  display:flex; align-items:center; justify-content:center; font-size:30px;
+}
+.about-hero h2{ font-size:20px; font-weight:800; }
+.about-hero p{ font-size:13px; color:var(--ios-secondary-label); text-align:center; }
+
+.destructive{ color:var(--ios-red); }
+
+</style>
+
+</head>
+<body>
+
+<div id="app">
+
+  <!-- =====================================================
+       TRACKER
+       ===================================================== -->
+
+  <section class="screen active" id="screen-tracker">
+
+    <div id="map"></div>
+
+    <header class="nav-bar">
+      <div class="nav-bar__title">Tracker</div>
+    </header>
+
+    <div class="search-float">
+      <div class="search-card" id="search-card">
+        <svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4.5 4.5"></path></svg>
+        <input id="sinp" type="text" placeholder="Search address or location"
+               autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+        <button id="sclr" aria-label="Clear search">×</button>
+      </div>
+      <div id="sres"></div>
+    </div>
+
+    <div class="map-controls">
+      <button class="map-control" onclick="locateUser()" aria-label="My location">
+        <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v4M12 18v4M2 12h4M18 12h4"></path></svg>
+      </button>
+      <button class="map-control" onclick="fitMap()" aria-label="Fit cordon">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M21 16v5h-5"></path></svg>
+      </button>
+      <button class="map-control" onclick="shareIncident()" aria-label="Share incident">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M12 16V3"></path><path d="m7 8 5-5 5 5"></path><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"></path></svg>
+      </button>
+    </div>
+
+    <div class="bottom-sheet">
+
+      <div class="status-row">
+        <div class="status-icon" id="status-icon"></div>
+        <div class="status-text">
+          <div id="compact-location">Tap the map or search for a location</div>
+          <div id="compact-status">Idle</div>
+        </div>
+        <div class="live-dot hidden" id="live-dot"></div>
+      </div>
+
+      <div class="mini-stats" id="mini-stats"></div>
+
+      <div class="control-row">
+        <button class="btn btn-go" id="go-btn" onclick="startTimer()">
+          <svg class="icon filled" viewBox="0 0 24 24"><path d="M7 5.5v13l11-6.5-11-6.5Z"></path></svg>
+          Start
+        </button>
+        <button class="btn btn-reset" onclick="resetTimer()" aria-label="Reset">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M3 11a9 9 0 1 1 2.6 6.3"></path><path d="M3 5v6h6"></path></svg>
+        </button>
+      </div>
+
+    </div>
+
+  </section>
+
+  <!-- =====================================================
+       RINGS
+       ===================================================== -->
+
+  <section class="screen" id="screen-rings">
+    <header class="nav-large" id="rings-header">
+      <div class="inline-title">Rings</div>
+      <h1>Rings</h1>
+    </header>
+    <div class="content-scroll" data-header="rings-header">
+      <div class="list-group" id="ring-list"></div>
+      <p class="list-footnote">Each ring expands outward from the incident location at its configured speed once the timer starts.</p>
+    </div>
+  </section>
+
+  <!-- =====================================================
+       SETTINGS
+       ===================================================== -->
+
+  <section class="screen" id="screen-settings">
+    <header class="nav-large" id="settings-header">
+      <div class="inline-title">Settings</div>
+      <h1>Settings</h1>
+    </header>
+    <div class="content-scroll" data-header="settings-header">
+
+      <div class="list-group" id="type-list"></div>
+
+      <div class="list-group">
+        <div class="list-row">
+          <div class="row-text"><div class="row-title">Incident started</div></div>
+          <div class="ios-stepper">
+            <button onclick="adjustDelay(-1)" aria-label="Decrease">−</button>
+            <div class="div"></div>
+            <button onclick="adjustDelay(1)" aria-label="Increase">+</button>
+          </div>
+          <div class="row-value" id="delay-value" style="min-width:70px;text-align:right;">0 min ago</div>
+        </div>
+      </div>
+
+      <div class="list-group">
+        <button class="list-row" style="width:100%;text-align:left;" onclick="clearIncident()">
+          <div class="row-text"><div class="row-title destructive">Clear Incident</div></div>
+        </button>
+      </div>
+
+      <div class="list-group">
+        <div class="list-row">
+          <div class="row-text"><div class="row-title">Version</div></div>
+          <div class="row-value">1.0</div>
+        </div>
+        <button class="list-row" style="width:100%;text-align:left;" onclick="pushAbout()">
+          <div class="row-text"><div class="row-title">About</div></div>
+          <svg class="icon row-chevron" viewBox="0 0 24 24" style="width:16px;height:16px;"><path d="m9 6 6 6-6 6"></path></svg>
+        </button>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- =====================================================
+       ABOUT (pushed sub-screen)
+       ===================================================== -->
+
+  <section class="screen screen--pushed" id="screen-about">
+    <header class="nav-bar">
+      <button class="nav-back" id="about-back" onclick="popAbout()">
+        <svg class="icon" viewBox="0 0 24 24" style="width:22px;height:22px;"><path d="m14 6-6 6 6 6"></path></svg>
+        Settings
+      </button>
+      <div class="nav-bar__title">About</div>
+    </header>
+    <div class="content-scroll" style="padding-top:calc(44px + var(--safe-top));">
+      <div class="about-hero">
+        <div class="icon">⌖</div>
+        <h2>Cordon Tracker</h2>
+        <p>Incident cordon distance calculator. Set an incident location, choose expansion rings, and track how far each threat radius has expanded over time.</p>
+      </div>
+      <div class="list-group">
+        <a class="list-row" style="width:100%;text-decoration:none;color:inherit;"
+           href="https://coxja15-cell.github.io/condorn-tracker/" target="_blank" rel="noopener">
+          <div class="row-text"><div class="row-title">Web version</div></div>
+          <svg class="icon row-chevron" viewBox="0 0 24 24" style="width:16px;height:16px;"><path d="m9 6 6 6-6 6"></path></svg>
+        </a>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<nav class="tab-bar">
+  <button class="tab-item active" data-tab="tracker" onclick="showTab('tracker')">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s7-7.58 7-12A7 7 0 1 0 5 9c0 4.42 7 12 7 12Z"></path><circle cx="12" cy="9" r="2.4" fill="var(--ios-bg-plain)"></circle></svg>
+    <span>Tracker</span>
+  </button>
+  <button class="tab-item" data-tab="rings" onclick="showTab('rings')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="3 3.4"><circle cx="12" cy="12" r="8.6"></circle></svg>
+    <span>Rings</span>
+  </button>
+  <button class="tab-item" data-tab="settings" onclick="showTab('settings')">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm8.94 2.19-1.64-.28a7.51 7.51 0 0 0-.66-1.6l.97-1.35a1 1 0 0 0-.1-1.28l-1.19-1.19a1 1 0 0 0-1.28-.1l-1.35.97a7.51 7.51 0 0 0-1.6-.66l-.28-1.64A1 1 0 0 0 12.85 2h-1.7a1 1 0 0 0-.98.83l-.28 1.64c-.57.16-1.1.38-1.6.66l-1.35-.97a1 1 0 0 0-1.28.1L4.47 5.45a1 1 0 0 0-.1 1.28l.97 1.35c-.28.5-.5 1.03-.66 1.6l-1.64.28a1 1 0 0 0-.83.98v1.7c0 .49.35.9.83.98l1.64.28c.16.57.38 1.1.66 1.6l-.97 1.35a1 1 0 0 0 .1 1.28l1.19 1.19a1 1 0 0 0 1.28.1l1.35-.97c.5.28 1.03.5 1.6.66l.28 1.64c.09.48.5.83.98.83h1.7c.49 0 .9-.35.98-.83l.28-1.64c.57-.16 1.1-.38 1.6-.66l1.35.97a1 1 0 0 0 1.28-.1l1.19-1.19a1 1 0 0 0 .1-1.28l-.97-1.35c.28-.5.5-1.03.66-1.6l1.64-.28c.48-.09.83-.5.83-.98v-1.7a1 1 0 0 0-.83-.98Z"></path></svg>
+    <span>Settings</span>
+  </button>
+</nav>
+
+<script>
+
+/* =========================================================
+   INCIDENT TYPES
+   ========================================================= */
+
+const TYPES = {
+  general:{ label:'General', color:'#FF9500', icon:'<svg class="icon filled" viewBox="0 0 24 24"><path d="M12 2 1 21h22L12 2Zm0 6v6m0 3.2h.01"/></svg>' },
+  police:{  label:'Police',  color:'#007AFF', icon:'<svg class="icon" viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 5 3.4 8.7 8 9 4.6-.3 8-4 8-9V6l-8-3Z"/></svg>' },
+  fire:{    label:'Fire',    color:'#FF3B30', icon:'<svg class="icon filled" viewBox="0 0 24 24"><path d="M12 2c1 3-2 4-2 7a4 4 0 1 0 8 0c0-1-1-2-1-2 1 4-1 5-2 5-2 0-2-2-2-3 0-2 1-3 1-5-1 1-3 1-3 3 0 1 1 1 1 2-2 0-3-2-3-4 0-2 1-2 3-3Z"/></svg>' },
+  medical:{ label:'Medical', color:'#34C759', icon:'<svg class="icon" viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12" rx="2"/><path d="M12 9v6M9 12h6"/></svg>' },
+  hazmat:{  label:'Hazmat',  color:'#FFCC00', icon:'<svg class="icon filled" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"/><circle cx="12" cy="6" r="2"/><circle cx="7" cy="15" r="2"/><circle cx="17" cy="15" r="2"/></svg>' },
+  sar:{     label:'SAR',     color:'#FF9500', icon:'<svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>' }
+};
+
+let currentType = 'general';
+
+
+/* =========================================================
+   CORDON RINGS
+   ========================================================= */
+
+const RINGS = [
+  { id:'walk',    label:'Walk',    speed:4,   color:'#8E8E93', on:false },
+  { id:'run',     label:'Run',     speed:6,   color:'#FF6B35', on:true  },
+  { id:'cycle',   label:'Cycle',   speed:20,  color:'#FF9500', on:false },
+  { id:'vehicle', label:'Vehicle', speed:50,  color:'#007AFF', on:true  },
+  { id:'highway', label:'Highway', speed:100, color:'#FF3B30', on:false }
+];
+
+let circles = {};
+let ringLabels = {};
+
+const RING_BEARINGS = { walk:0, run:72, cycle:144, vehicle:216, highway:288 };
+
+
+/* =========================================================
    NZ SEARCH DATABASE
    ========================================================= */
 
