@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cordon-tracker-v3';
+const CACHE_NAME = 'cordon-tracker-v4';
 
 const APP_FILES = [
   './',
@@ -42,6 +42,13 @@ self.addEventListener('fetch', event => {
         })
         .catch(() => caches.match('./index.html'))
     );
+    return;
+  }
+
+  // Live location search hits Nominatim directly — these are one-off
+  // queries per keystroke, not app assets, so don't fill the cache with them.
+  if (request.url.includes('nominatim.openstreetmap.org')) {
+    event.respondWith(fetch(request));
     return;
   }
 
